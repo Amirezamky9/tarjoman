@@ -24,7 +24,7 @@ from tarjoman.core.contracts import (
 from tarjoman.stages.base import BaseStage
 from tarjoman.stages.stage1_pre_analysis import PreAnalysisStage
 
-PERSIAN_TO_ENGLISH_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+PERSIAN_TO_ENGLISH_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩٫", "01234567890123456789.")
 
 SEVERITY_WEIGHTS: Dict[str, float] = {
     "critical": 10.0,

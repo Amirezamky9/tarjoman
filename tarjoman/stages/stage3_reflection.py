@@ -25,7 +25,7 @@ from tarjoman.stages.anti_calque import AntiCalqueEngine
 from tarjoman.stages.base import BaseStage
 from tarjoman.stages.stage4_polish import StylisticPolishStage
 
-PERSIAN_TO_ENGLISH_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+PERSIAN_TO_ENGLISH_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩٫", "01234567890123456789.")
 
 
 class ReflectionEngine(ABC):
@@ -87,7 +87,8 @@ class RuleBasedReflectionEngine(ReflectionEngine):
         # 1.1 Missing numbers
         clean_source = re.sub(r"⟦PROTECTED_\d+⟧", " ", source)
         source_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", clean_source)
-        draft_eng_digits = draft.translate(PERSIAN_TO_ENGLISH_DIGITS)
+        clean_draft = re.sub(r"⟦PROTECTED_\d+⟧", " ", draft)
+        draft_eng_digits = clean_draft.translate(PERSIAN_TO_ENGLISH_DIGITS)
         missing_numbers = [num for num in set(source_numbers) if num not in draft_eng_digits]
         if missing_numbers:
             critiques.append(f"[Accuracy] Missing number(s) from source: {', '.join(sorted(missing_numbers))}")
@@ -98,7 +99,6 @@ class RuleBasedReflectionEngine(ReflectionEngine):
             critiques.append(f"[Accuracy] Protected token(s) missing or altered: {', '.join(missing_tokens)}")
 
         # 1.3 Untranslated English text (words of 4+ characters, outside protected tokens)
-        clean_draft = re.sub(r"⟦PROTECTED_\d+⟧", " ", draft)
         ascii_words = re.findall(r"\b[A-Za-z]{4,}\b", clean_draft)
         if ascii_words and not profile.typography.isolate_english_terms:
             known_terms = {k.lower() for k in profile.terminology_map.keys()}

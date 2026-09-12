@@ -38,10 +38,10 @@ class PreAnalysisStage(BaseStage):
         ("display_math", re.compile(r"\$\$[\s\S]*?\$\$")),
         # 3. Inline code (`...`)
         ("inline_code", re.compile(r"`[^`\n]+`")),
-        # 4. LaTeX inline math ($...$) - not preceded or followed by other dollar signs or digits
-        ("inline_math", re.compile(r"(?<![\$\\\w])\$(?!\$)([^\$\n]+?)(?<!\\)\$")),
-        # 5. URLs
-        ("url", re.compile(r"https?://[^\s<>\"'()]+")),
+        # 4. LaTeX inline math ($...$) - not preceded or followed by other dollar signs or digits, avoiding currency like $50
+        ("inline_math", re.compile(r"(?<![\$\\\w])\$(?![\$\d\s])([^\$\n]+?)(?<![\\\s])\$")),
+        # 5. URLs (avoiding trailing punctuation)
+        ("url", re.compile(r"https?://[^\s<>\"'()]+(?<![.,;:!?])")),
         # 6. Email addresses
         ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
     ]
