@@ -24,4 +24,12 @@ __all__ = [
     "AuditFinding",
     "AuditReport",
     "BookManifest",
+    "TranslationPipeline",
 ]
+
+
+def __getattr__(name: str):
+    if name == "TranslationPipeline":
+        from tarjoman.core.pipeline import TranslationPipeline
+        return TranslationPipeline
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

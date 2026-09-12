@@ -31,6 +31,9 @@ class StylisticPolishStage(BaseStage):
     Stage 4 polisher enforcing typographic rules, stylistic norms, and anti-calque corrections.
     """
 
+    def __init__(self, restore_tokens: bool = False) -> None:
+        self.restore_tokens = restore_tokens
+
     # Persian dialogue speech verbs
     _SPEECH_VERBS = (
         r"(?:گفت|پرسید|پاسخ داد|زمزمه کرد|فریاد زد|غرولند کرد|نالید|داد زد|"
@@ -230,6 +233,12 @@ class StylisticPolishStage(BaseStage):
                 else seg.source_text
             )
             polished = self.polish(text_to_polish, profile)
+
+            if self.restore_tokens and seg.metadata.get("protected_tokens"):
+                from tarjoman.stages.stage1_pre_analysis import PreAnalysisStage
+                polished = PreAnalysisStage.restore_tokens(
+                    polished, seg.metadata["protected_tokens"]
+                )
 
             seg_copy = seg.model_copy()
             seg_copy.polished_text = polished
