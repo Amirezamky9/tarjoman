@@ -41,7 +41,7 @@ class StylisticPolishStage(BaseStage):
     )
 
     _DIALOGUE_TAG_PATTERN = re.compile(
-        rf"«([^»]+)»\s*([؀-ۿ\s‌]+?)\s*({_SPEECH_VERBS})(?:\.|$)",
+        rf"«([^»\n]+)»\s*([؀-ۿ\s‌]+?)\s*({_SPEECH_VERBS})(?:\.|$)",
         re.UNICODE,
     )
 

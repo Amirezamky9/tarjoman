@@ -88,7 +88,8 @@ class AuditStage(BaseStage):
             normalized_target = inspected_target.translate(PERSIAN_TO_ENGLISH_DIGITS)
 
             for num in set(source_numbers):
-                if num not in normalized_target:
+                pattern = rf"(?<!\d){re.escape(num)}(?!\d)"
+                if not re.search(pattern, normalized_target):
                     findings.append(
                         AuditFinding(
                             rule_id="MQM-NUM-OMISSION",
