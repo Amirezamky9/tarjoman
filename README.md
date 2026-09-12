@@ -339,10 +339,10 @@ We welcome contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <div align="center">
-<b>Tarjoman Master Suite</b> — <i>Crafted for the Persian language, AI researchers, and translators worldwide.</i>
+<b>Tarjoman Master Suite</b> - <i>Crafted for the Persian language, AI researchers, and translators worldwide.</i>
 </div>

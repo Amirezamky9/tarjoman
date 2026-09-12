@@ -70,16 +70,16 @@ We are committed to providing a welcoming, inclusive, and respectful community f
 
 Tarjoman supports 10 canonical domains, each defined by a JSON profile located in `tarjoman/domains/registry/`:
 
-- `literary.json` — Fiction, novels, short stories, narrative prose
-- `scientific.json` — Academic papers, journal articles, scientific books
-- `philosophy.json` — Continental & analytic philosophy, intellectual essays
-- `legal.json` — Contracts, statutory articles, legal agreements
-- `technical.json` — Software engineering, developer guides, code documentation
-- `medical.json` — Clinical trials, pathology, pharmacology, healthcare
-- `media.json` — Journalism, news reporting, press releases
-- `financial.json` — Corporate finance, economics, investment, banking
-- `classical.json` — Historical chronicles, ancient texts, classical prose
-- `transcreation.json` — Creative marketing, branding slogans, ad copy
+- `literary.json`: Fiction, novels, short stories, narrative prose
+- `scientific.json`: Academic papers, journal articles, scientific books
+- `philosophy.json`: Continental & analytic philosophy, intellectual essays
+- `legal.json`: Contracts, statutory articles, legal agreements
+- `technical.json`: Software engineering, developer guides, code documentation
+- `medical.json`: Clinical trials, pathology, pharmacology, healthcare
+- `media.json`: Journalism, news reporting, press releases
+- `financial.json`: Corporate finance, economics, investment, banking
+- `classical.json`: Historical chronicles, ancient texts, classical prose
+- `transcreation.json`: Creative marketing, branding slogans, ad copy
 
 ### Adding or Enhancing a Domain Profile
 
