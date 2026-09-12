@@ -48,6 +48,13 @@ class TestAntiCalqueEngine(unittest.TestCase):
         self.assertNotIn("بازی کرد", cleaned2)
         self.assertIn("ایفا کرد", cleaned2)
 
+        # Spaced prefix (می کند)
+        bad_spaced = "او نقش مهمی بازی می کند"
+        cleaned_spaced = AntiCalqueEngine.eliminate_calques(bad_spaced)
+        self.assertNotIn("بازی می کند", cleaned_spaced)
+        self.assertNotIn("بازی می‌کند", cleaned_spaced)
+        self.assertIn("ایفا می‌کند", cleaned_spaced)
+
     def test_count_on_calque_removal(self):
         """Test 'روی کسی حساب کردن' -> 'به کسی اعتماد کردن'."""
         bad = "روی او حساب کن."
@@ -73,7 +80,7 @@ class TestAntiCalqueEngine(unittest.TestCase):
         self.assertIn("در نهایت", cleaned)
 
     def test_makes_sense_calque_removal(self):
-        """Test 'حس ایجاد می‌کند' / 'معنا می‌دهد' -> 'منطقی است'."""
+        """Test 'حس ایجاد می‌کند' / contextual 'این ادعا معنا می‌دهد' -> 'منطقی است'."""
         bad = "این نظریه کاملاً حس ایجاد می‌کند."
         cleaned = AntiCalqueEngine.eliminate_calques(bad)
         self.assertNotIn("حس ایجاد می‌کند", cleaned)
@@ -84,10 +91,15 @@ class TestAntiCalqueEngine(unittest.TestCase):
         self.assertNotIn("حس ایجاد نمی‌کند", cleaned_neg)
         self.assertIn("منطقی نیست", cleaned_neg)
 
-        bad_meaning = "توضیح شما کاملاً معنا می‌دهد."
+        bad_meaning = "این ادعا معنا می‌دهد."
         cleaned_meaning = AntiCalqueEngine.eliminate_calques(bad_meaning)
         self.assertNotIn("معنا می‌دهد", cleaned_meaning)
-        self.assertIn("منطقی است", cleaned_meaning)
+        self.assertIn("این ادعا منطقی است", cleaned_meaning)
+
+        # Ensure legitimate usage is NOT corrupted
+        legit = "عشق به جهان معنا می‌دهد."
+        cleaned_legit = AntiCalqueEngine.eliminate_calques(legit)
+        self.assertEqual(cleaned_legit, legit)
 
     def test_additional_calques(self):
         """Test remaining Najafi/Samii banned calques."""
@@ -166,6 +178,16 @@ class TestStylisticPolishStage(unittest.TestCase):
         res2 = stage.process([TextSegment(id=2, source_text="", translated_text=bad2)], profile)
         self.assertEqual(res2.segments[0].polished_text, 'هری با نگرانی گفت: «...»')
 
+        # Test plural speech verbs
+        plural_text = '«کجا می‌روید؟» آنها پرسیدند.'
+        res_plural = stage.process([TextSegment(id=3, source_text="", translated_text=plural_text)], profile)
+        self.assertEqual(res_plural.segments[0].polished_text, 'آنها پرسیدند: «کجا می‌روید؟»')
+
+        # Test consecutive dialogues without period swallowing
+        multi_dialogue = '«سلام» هری گفت. «خداحافظ» ران گفت.'
+        res_multi = stage.process([TextSegment(id=4, source_text="", translated_text=multi_dialogue)], profile)
+        self.assertEqual(res_multi.segments[0].polished_text, 'هری گفت: «سلام.» ران گفت: «خداحافظ.»')
+
     def test_em_dash_handling(self):
         """Test ERADICATE, ADAPT, and PRESERVE em-dash policies."""
         text = "او آمد — خسته و تنها."
@@ -240,6 +262,11 @@ class TestStylisticPolishStage(unittest.TestCase):
         self.assertNotIn(" .", clean)
         self.assertNotIn(" ؟", clean)
         self.assertIn("، ", clean)
+
+        # Colon spacing before Persian quote
+        colon_quote = "گفت:«سلام»"
+        clean_colon = StylisticPolishStage.clean_punctuation_hygiene(colon_quote)
+        self.assertEqual(clean_colon, "گفت: «سلام»")
 
 
 class TestRouterReviewFixes(unittest.TestCase):

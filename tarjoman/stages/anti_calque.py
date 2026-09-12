@@ -29,20 +29,20 @@ class AntiCalqueEngine:
     # 2. Playing a role -> ایفا کردن
     _PLAY_ROLE_PATTERN: Pattern = re.compile(
         r"(?:(یک)\s+)?(نقش(?:ی)?(?:\s+(?:کلیدی|مهم|اساسی|محوری|تعیین‌کننده|عمده|برجسته))?)"
-        r"(.*?)\bبازی\s+(کردن|کرد|کرده است|کرده‌اند|کردند|می‌کرد|می‌کردند|می‌کند|می‌کنند|کند|کنند)\b",
+        r"(.*?)\bبازی\s+(کردن|کرد|کرده است|کرده‌اند|کردند|(?:می‌|می\s+)کرد|(?:می‌|می\s+)کردند|(?:می‌|می\s+)کند|(?:می‌|می\s+)کنند|کند|کنند)\b",
         re.UNICODE,
     )
 
     # 3. Rely on / Count on -> اعتماد کردن / تکیه کردن
     _COUNT_ON_PATTERN: Pattern = re.compile(
-        r"روی\s+([^،.\n]+?)\s+حساب\s+(کردن|کرد|کرده است|کرده|می‌کند|می‌کنند|می‌کنم|می‌کنی|می‌کنیم|"
-        r"می‌کنید|کردند|کردم|کردی|کردیم|کن|نکن|کنید|نکنید|نکنم|نکند)",
+        r"روی\s+([^،.\n]+?)\s+حساب\s+(کردن|کرد|کرده است|کرده|(?:می‌|می\s+)کند|(?:می‌|می\s+)کنند|(?:می‌|می\s+)کنم|"
+        r"(?:می‌|می\s+)کنی|(?:می‌|می\s+)کنیم|(?:می‌|می\s+)کنید|کردند|کردم|کردی|کردیم|کن|نکن|کنید|نکنید|نکنم|نکند)",
         re.UNICODE,
     )
 
     # 4. Act as -> در جایگاه ... بودن
     _ACT_AS_PATTERN: Pattern = re.compile(
-        r"به عنوانِ?\s+([^،.\n]+?)\s+عمل\s+(کردن|کرد|کرده است|کرده|می‌کند|می‌کنند|کردند|می‌کرد|می‌کردند)",
+        r"به عنوانِ?\s+([^،.\n]+?)\s+عمل\s+(کردن|کرد|کرده است|کرده|(?:می‌|می\s+)کند|(?:می‌|می\s+)کنند|کردند|(?:می‌|می\s+)کرد|(?:می‌|می\s+)کردند)",
         re.UNICODE,
     )
 
@@ -51,28 +51,29 @@ class AntiCalqueEngine:
 
     # 6. Makes sense -> منطقی است / معقول است
     _MAKES_SENSE_PATTERN: Pattern = re.compile(
-        r"\bحس ایجاد\s+(می‌کند|می‌کرد|کرد|نمی‌کند|نمی‌کرد|نکرد|کردن)\b", re.UNICODE
+        r"\bحس ایجاد\s+((?:می‌|می\s+)کند|(?:می‌|می\s+)کرد|کرد|(?:نمی‌|نمی\s+)کند|(?:نمی‌|نمی\s+)کرد|نکرد|کردن)\b", re.UNICODE
     )
-    _MAKES_SENSE_MEANING_PATTERN: Pattern = re.compile(
-        r"\b(معنا|معنی)\s+(می‌دهد|نمی‌دهد|داد)\b", re.UNICODE
+    _MAKES_SENSE_CONTEXTUAL_PATTERN: Pattern = re.compile(
+        r"\b(این\s+(?:حرف|ادعا|موضوع|نکته))\s+(معنا|معنی)\s+((?:می‌|می\s+)دهد|(?:نمی‌|نمی\s+)دهد|داد)\b",
+        re.UNICODE,
     )
 
     # 7. Make a decision -> تصمیم‌گیری کردن / تصمیمی اتخاذ کردن
     _MAKE_DECISION_PATTERN: Pattern = re.compile(
-        r"\bیک\s+تصمیم\s+(گرفتن|گرفت|گرفتند|گرفته است|گرفته‌اند|می‌گیرد|می‌گیرند|بگیرد|بگیرند|"
+        r"\bیک\s+تصمیم\s+(گرفتن|گرفت|گرفتند|گرفته است|گرفته‌اند|(?:می‌|می\s+)گیرد|(?:می‌|می\s+)گیرند|بگیرد|بگیرند|"
         r"گرفتیم|گرفتم|بگیریم|بگیرم)\b",
         re.UNICODE,
     )
 
     # 8. Open fire -> شلیک کردن / تیراندازی کردن
     _OPEN_FIRE_PATTERN: Pattern = re.compile(
-        r"\bآتش\s+(گشودن|گشود|گشودند|می‌گشایند|می‌گشاید|گشوده شد|گشوده شده است)\b",
+        r"\bآتش\s+(گشودن|گشود|گشودند|(?:می‌|می\s+)گشایند|(?:می‌|می\s+)گشاید|گشوده شد|گشوده شده است)\b",
         re.UNICODE,
     )
 
     # 9. Take a bath / shower -> حمام کردن / دوش گرفتن
     _TAKE_BATH_PATTERN: Pattern = re.compile(
-        r"\bحمام\s+(گرفتن|گرفت|گرفتند|می‌گیرد|می‌گیرند|بگیرد|بگیرند|بگیرید|گرفته است)\b",
+        r"\bحمام\s+(گرفتن|گرفت|گرفتند|(?:می‌|می\s+)گیرد|(?:می‌|می\s+)گیرند|بگیرد|بگیرند|بگیرید|گرفته است)\b",
         re.UNICODE,
     )
 
@@ -83,13 +84,13 @@ class AntiCalqueEngine:
 
     # 11. Give green light -> موافقت کردن / اجازه دادن
     _GREEN_LIGHT_PATTERN: Pattern = re.compile(
-        r"\bچراغ\s+سبز\s+نشان\s+(دادن|داد|دادند|می‌دهد|می‌دهند|داده است|داده‌اند|دهد|دهند)\b",
+        r"\bچراغ\s+سبز\s+نشان\s+(دادن|داد|دادند|(?:می‌|می\s+)دهد|(?:می‌|می\s+)دهند|داده است|داده‌اند|دهد|دهند)\b",
         re.UNICODE,
     )
 
     # 12. Reach the end of the line -> به بن‌بست رسیدن / درمانده شدن
     _END_OF_LINE_PATTERN: Pattern = re.compile(
-        r"\bبه پایان خط\s+(رسیدن|رسید|رسیدند|می‌رسد|می‌رسند|رسیده است|رسیده‌اند|برسد|برسند)\b",
+        r"\bبه پایان خط\s+(رسیدن|رسید|رسیدند|(?:می‌|می\s+)رسد|(?:می‌|می\s+)رسند|رسیده است|رسیده‌اند|برسد|برسند)\b",
         re.UNICODE,
     )
 
@@ -211,6 +212,9 @@ class AntiCalqueEngine:
 
         result = text
 
+        def _norm_verb(v: str) -> str:
+            return re.sub(r"^(ن?می)\s+", r"\1‌", v)
+
         # 1. Passive by-agent with 'توسط' -> به دست \1 \2
         result = cls._PASSIVE_BY_PATTERN.sub(r"به دست \1 \2", result)
 
@@ -218,7 +222,7 @@ class AntiCalqueEngine:
         def _replace_play_role(m: re.Match) -> str:
             role_part = m.group(2) or "نقش"
             intervening = m.group(3) or ""
-            verb = m.group(4)
+            verb = _norm_verb(m.group(4))
             return f"{role_part}{intervening}ایفا {verb}"
 
         result = cls._PLAY_ROLE_PATTERN.sub(_replace_play_role, result)
@@ -226,7 +230,7 @@ class AntiCalqueEngine:
         # 3. Rely on / Count on -> به \1 اعتماد کردن
         def _replace_count_on(m: re.Match) -> str:
             complement = m.group(1).strip()
-            raw_verb = m.group(2)
+            raw_verb = _norm_verb(m.group(2))
             mapped_verb = cls._COUNT_ON_VERB_MAP.get(raw_verb, "اعتماد کردن")
             return f"به {complement} اعتماد {mapped_verb}"
 
@@ -235,7 +239,7 @@ class AntiCalqueEngine:
         # 4. Act as -> در جایگاه \1 بودن
         def _replace_act_as(m: re.Match) -> str:
             role = m.group(1).strip()
-            raw_verb = m.group(2)
+            raw_verb = _norm_verb(m.group(2))
             mapped_verb = cls._ACT_AS_VERB_MAP.get(raw_verb, "بودن")
             return f"در جایگاه {role} {mapped_verb}"
 
@@ -246,38 +250,39 @@ class AntiCalqueEngine:
 
         # 6. Makes sense -> منطقی است
         def _replace_makes_sense(m: re.Match) -> str:
-            verb = m.group(1)
+            verb = _norm_verb(m.group(1))
             return cls._MAKES_SENSE_VERB_MAP.get(verb, "منطقی است")
 
         result = cls._MAKES_SENSE_PATTERN.sub(_replace_makes_sense, result)
 
-        def _replace_makes_sense_meaning(m: re.Match) -> str:
-            verb = m.group(2)
-            if verb == "نمی‌دهد":
-                return "منطقی نیست"
+        def _replace_makes_sense_contextual(m: re.Match) -> str:
+            subject = m.group(1)
+            verb = _norm_verb(m.group(3))
+            if "نمی" in verb:
+                return f"{subject} منطقی نیست"
             elif verb == "داد":
-                return "منطقی بود"
-            return "منطقی است"
+                return f"{subject} منطقی بود"
+            return f"{subject} منطقی است"
 
-        result = cls._MAKES_SENSE_MEANING_PATTERN.sub(_replace_makes_sense_meaning, result)
+        result = cls._MAKES_SENSE_CONTEXTUAL_PATTERN.sub(_replace_makes_sense_contextual, result)
 
         # 7. Make a decision -> تصمیم‌گیری کردن / تصمیمی اتخاذ کردن
         def _replace_decision(m: re.Match) -> str:
-            raw_verb = m.group(1)
+            raw_verb = _norm_verb(m.group(1))
             return cls._DECISION_VERB_MAP.get(raw_verb, "تصمیم‌گیری کردن")
 
         result = cls._MAKE_DECISION_PATTERN.sub(_replace_decision, result)
 
         # 8. Open fire -> شلیک کردن
         def _replace_open_fire(m: re.Match) -> str:
-            raw_verb = m.group(1)
+            raw_verb = _norm_verb(m.group(1))
             return cls._OPEN_FIRE_MAP.get(raw_verb, "شلیک کردن")
 
         result = cls._OPEN_FIRE_PATTERN.sub(_replace_open_fire, result)
 
         # 9. Take a bath / shower -> دوش گرفتن
         def _replace_take_bath(m: re.Match) -> str:
-            raw_verb = m.group(1)
+            raw_verb = _norm_verb(m.group(1))
             return cls._TAKE_BATH_MAP.get(raw_verb, "دوش گرفتن")
 
         result = cls._TAKE_BATH_PATTERN.sub(_replace_take_bath, result)
@@ -293,14 +298,14 @@ class AntiCalqueEngine:
 
         # 11. Green light -> موافقت کردن
         def _replace_green_light(m: re.Match) -> str:
-            raw_verb = m.group(1)
+            raw_verb = _norm_verb(m.group(1))
             return cls._GREEN_LIGHT_MAP.get(raw_verb, "موافقت کردن")
 
         result = cls._GREEN_LIGHT_PATTERN.sub(_replace_green_light, result)
 
         # 12. Reach the end of the line -> به بن‌بست رسیدن
         def _replace_end_of_line(m: re.Match) -> str:
-            raw_verb = m.group(1)
+            raw_verb = _norm_verb(m.group(1))
             return cls._END_OF_LINE_MAP.get(raw_verb, "به بن‌بست رسیدن")
 
         result = cls._END_OF_LINE_PATTERN.sub(_replace_end_of_line, result)
@@ -329,7 +334,7 @@ class AntiCalqueEngine:
             (cls._ACT_AS_PATTERN, "به عنوان عمل کردن"),
             (cls._END_OF_DAY_PATTERN, "در پایان روز"),
             (cls._MAKES_SENSE_PATTERN, "حس ایجاد می‌کند"),
-            (cls._MAKES_SENSE_MEANING_PATTERN, "معنا می‌دهد (makes sense)"),
+            (cls._MAKES_SENSE_CONTEXTUAL_PATTERN, "معنا می‌دهد (makes sense)"),
             (cls._MAKE_DECISION_PATTERN, "یک تصمیم گرفتن"),
             (cls._OPEN_FIRE_PATTERN, "آتش گشودن"),
             (cls._TAKE_BATH_PATTERN, "حمام گرفتن"),

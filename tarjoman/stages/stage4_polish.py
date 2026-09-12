@@ -33,8 +33,8 @@ class StylisticPolishStage(BaseStage):
 
     # Persian dialogue speech verbs
     _SPEECH_VERBS = (
-        r"گفت|پرسید|پاسخ داد|زمزمه کرد|فریاد زد|غرولند کرد|نالید|داد زد|"
-        r"پوزخند زد|با تعجب گفت|ادامه داد|افزود|خندید|تکرار کرد|طعنه زد"
+        r"(?:گفت|پرسید|پاسخ داد|زمزمه کرد|فریاد زد|غرولند کرد|نالید|داد زد|"
+        r"پوزخند زد|با تعجب گفت|ادامه داد|افزود|خندید|تکرار کرد|طعنه زد)(?:ند|م|ی|یم|ید)?"
     )
 
     _DIALOGUE_TAG_PATTERN = re.compile(
@@ -89,9 +89,11 @@ class StylisticPolishStage(BaseStage):
             subject = m.group(2).strip()
             verb = m.group(3).strip()
 
-            # If quote ends with a comma from English translation, convert to period
+            # If quote ends with a comma from English translation, strip and append period
             if quote.endswith(("،", ",")):
                 quote = quote[:-1].strip() + "."
+            elif not quote.endswith((".", "!", "؟", "…")):
+                quote = quote + "."
 
             return f"{subject} {verb}: «{quote}»"
 
@@ -155,7 +157,7 @@ class StylisticPolishStage(BaseStage):
         text = re.sub(r"([،,])([^\s\d»«])", r"\1 \2", text)
 
         # Ensure space after colon (unless within numbers or URLs)
-        text = re.sub(r"(:)([^\s\d»«/])", r"\1 \2", text)
+        text = re.sub(r"(:)([^\s\d»/])", r"\1 \2", text)
 
         # Clean multiple spaces
         text = re.sub(r"[ ]{2,}", " ", text)
@@ -181,25 +183,29 @@ class StylisticPolishStage(BaseStage):
         # 1. Arabic character standardization (ي -> ی, ك -> ک)
         result = cls.standardize_arabic_chars(text)
 
-        # 2. Anti-calque elimination
-        result = AntiCalqueEngine.eliminate_calques(result)
-
-        # 3. Em-dash handling
-        result = cls.apply_em_dash_policy(result, typo.em_dash_policy)
-
-        # 4. Persian quotes enforcement
-        if typo.enforce_persian_quotes:
-            result = cls.enforce_persian_quotes(result)
-
-        # 5. Dialogue tag inversion (literary fiction)
-        if typo.invert_dialogue_tags:
-            result = cls.invert_dialogue_tags(result)
-
-        # 6. Strict ZWNJ
+        # 2. Strict ZWNJ (normalize verbal prefixes before anti-calque)
         if typo.strict_zwnj:
             result = cls.enforce_strict_zwnj(result)
 
-        # 7. Punctuation hygiene
+        # 3. Anti-calque elimination
+        result = AntiCalqueEngine.eliminate_calques(result)
+
+        # 4. Em-dash handling
+        result = cls.apply_em_dash_policy(result, typo.em_dash_policy)
+
+        # 5. Persian quotes enforcement
+        if typo.enforce_persian_quotes:
+            result = cls.enforce_persian_quotes(result)
+
+        # 6. Dialogue tag inversion (literary fiction)
+        if typo.invert_dialogue_tags:
+            result = cls.invert_dialogue_tags(result)
+
+        # 7. Strict ZWNJ
+        if typo.strict_zwnj:
+            result = cls.enforce_strict_zwnj(result)
+
+        # 8. Punctuation hygiene
         result = cls.clean_punctuation_hygiene(result)
 
         return result
