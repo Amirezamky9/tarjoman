@@ -173,10 +173,7 @@ def compose_typst_cmd(
     click.echo(f"Typst source composed: {output_path}")
 
     if compile_pdf:
-        if str(output_path).lower().endswith(".typ"):
-            pdf_path = str(output_path)[:-4] + ".pdf"
-        else:
-            pdf_path = str(output_path) + ".pdf"
+        pdf_path = str(output_path.with_suffix(".pdf"))
         ok = composer.compile_pdf(typst_code, pdf_path)
         if ok:
             click.echo(f"PDF compiled successfully: {pdf_path}")
@@ -304,11 +301,11 @@ def book_status_cmd(project_dir: Path) -> None:
     terms_count = 0
     if terms_path.exists():
         with open(terms_path, "r", encoding="utf-8") as f:
-            for idx, line in enumerate(f):
+            for line in f:
                 line = line.strip()
                 if not line:
                     continue
-                if idx == 0 and line.startswith("english_term"):
+                if line.startswith("english_term\t") or line.startswith("#"):
                     continue
                 terms_count += 1
     else:
