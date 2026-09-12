@@ -1,0 +1,5 @@
+In a double-blind randomized clinical trial evaluating patients diagnosed with acute myocardial infarction, the therapeutic efficacy of the novel anticoagulant was systematically investigated. The etiology of secondary thromboembolism was monitored alongside comprehensive pathology and biopsy assessments.
+
+The standard starting dosage was 50 mg administered via intravenous infusion, followed by a maintenance dose of 2.5 mg/kg once daily. Pharmacokinetics confirmed rapid absorption without documented contraindication or severe adverse reaction in the patient cohort.
+
+Physicians noted that early diagnosis and timely prescription improved the long-term prognosis significantly, reducing hospital readmission rates across all therapeutic study groups.

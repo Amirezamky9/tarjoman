@@ -170,6 +170,21 @@ class TestSkillpacks(unittest.TestCase):
             self.assertIn("calque", categories)
             self.assertIn("quote", categories)
             self.assertIn("arabic", categories)
+
+            # Test skipping fenced code blocks
+            code_block_text = (
+                "این متن اصلی است.\n"
+                "```python\n"
+                "# Faulty code with em-dash — and calque توسط\n"
+                "x = 'ك'\n"
+                "```\n"
+                "این بخش پایانی است.\n"
+            )
+            issues_skipped = linter_module.lint_text(code_block_text, skip_code_blocks=True)
+            self.assertEqual(len(issues_skipped), 0)
+
+            issues_not_skipped = linter_module.lint_text(code_block_text, skip_code_blocks=False)
+            self.assertGreater(len(issues_not_skipped), 0)
         finally:
             sys.modules.pop("tarjoman_linter", None)
 

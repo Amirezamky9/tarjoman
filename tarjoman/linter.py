@@ -1,32 +1,19 @@
-#!/usr/bin/env python3
 """
-Persian Markdown & Translation Linter for Tarjoman.
+Persian Markdown & Translation Linter for Tarjoman Universal Engine.
 
 Checks Persian text/markdown files for:
 1. Lingering em-dashes and en-dashes ('—', '–')
 2. Banned structural and lexical calques ('توسط', 'نقش بازی کردن', 'روی ... حساب کردن', etc.)
 3. Unbalanced Persian quotation marks ('«' vs '»')
 4. Non-standard Arabic characters ('ي', 'ك') instead of Persian ('ی', 'ک')
-
-Exit codes:
-- 0: Clean / PASSED
-- 1: Issues detected / FAILED
-- 2: File access error / Invalid arguments
 """
 from __future__ import annotations
 
-import argparse
 import os
 import re
 import sys
 from dataclasses import dataclass
 from typing import List, Pattern, Tuple
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
 
 # ANSI Color Codes
 GREEN = "\033[92m"
@@ -166,45 +153,3 @@ def format_report(file_path: str, issues: List[LintIssue]) -> str:
         lines.append("")
 
     return "\n".join(lines)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Tarjoman Linter: Enforces Persian typography, zero em-dash, quote balance, and anti-calque purity."
-    )
-    parser.add_argument("file", help="Path to Persian Markdown or text file to lint")
-    parser.add_argument(
-        "--skip-code-blocks",
-        dest="skip_code_blocks",
-        action="store_true",
-        default=True,
-        help="Skip linting content inside fenced code blocks (default: True)",
-    )
-    parser.add_argument(
-        "--no-skip-code-blocks",
-        dest="skip_code_blocks",
-        action="store_false",
-        help="Do not skip content inside fenced code blocks",
-    )
-    args = parser.parse_args()
-
-    if not os.path.exists(args.file):
-        print(f"{RED}Error: File not found: {args.file}{RESET}", file=sys.stderr)
-        return 2
-
-    try:
-        with open(args.file, "r", encoding="utf-8") as f:
-            content = f.read()
-    except Exception as exc:
-        print(f"{RED}Error reading file {args.file}: {exc}{RESET}", file=sys.stderr)
-        return 2
-
-    issues = lint_text(content, skip_code_blocks=args.skip_code_blocks)
-    report = format_report(args.file, issues)
-    print(report)
-
-    return 0 if not issues else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

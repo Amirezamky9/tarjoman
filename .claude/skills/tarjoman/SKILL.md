@@ -60,7 +60,7 @@ All Tarjoman outputs adhere strictly to the following standards:
 2. **Zero-Width Non-Joiner (ZWNJ / نیم‌فاصله)**:
    - Compulsory for verb prefixes: `می‌رود`, `نمی‌دانم` (U+200C).
    - Compulsory for plural suffix `ها`: `کتاب‌ها`, `روش‌ها`.
-   - Compulsory for comparative suffixes: `بهترين‌شان`, `سریع‌تر`.
+   - Compulsory for comparative suffixes: `بهترین‌شان`, `سریع‌تر`.
    - Compulsory for Persian ezafe on silent heh: `خانه‌ی من` or `خانهٔ من`.
    - Compulsory for compound nouns: `تصمیم‌گیری`, `گفت‌وگو`, `بین‌المللی`.
 

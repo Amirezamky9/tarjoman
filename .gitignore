@@ -12,6 +12,7 @@ dist/
 .pytest_cache/
 .coverage
 htmlcov/
+benchmarks/outputs/
 
 # Superpowers local artifacts
 .superpowers/
