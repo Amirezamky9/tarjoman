@@ -1,0 +1,60 @@
+# Scientific Translation Reference Guide (راهنمای ترجمه علمی و دانشگاهی)
+
+## Overview
+The Scientific domain profile is tailored for peer-reviewed journal papers, academic textbooks, dissertations, and research monographs. Precision, terminological consistency, objective passive/active balance, and strict bidi (bidirectional) text handling are paramount.
+
+---
+
+## 1. Mathematical Formulas & LaTeX Preservation
+
+Mathematical expressions, formulas, and symbols must remain completely uncorrupted:
+- **Inline Formulas**: Retain `$E=mc^2$`, `$p < 0.05$`, `$\alpha = 0.01$` verbatim within dollar signs.
+- **Display Equations**: Retain `$$...$$` blocks verbatim.
+- **Directional Isolation**: When an inline formula appears inside Persian RTL text, ensure it is directionally isolated so that minus signs, inequality operators, and subscripts do not flip across RTL/LTR boundary.
+
+Example:
+- *Source*: The empirical findings indicate a statistically significant correlation ($p < 0.01$) between the two variables.
+- *Persian*: یافته‌های تجربی نشان‌دهنده همبستگی معنادار از نظر آماری ($p < 0.01$) میان این دو متغیر است.
+
+---
+
+## 2. Directional Isolation & English Technical Terms
+
+When an untranslated English term, acronym, or gene/protein identifier appears within Persian prose:
+1. Wrap with Unicode directional isolates or parentheses: `(Machine Learning)` or `DNA`.
+2. First occurrence: Provide the standard Persian academic equivalent followed by the English original in parentheses:
+   - *Example*: «یادگیری تقویتی (Reinforcement Learning)»
+3. Subsequent occurrences: Use the Persian equivalent consistently without repeating the English acronym unless disambiguation requires it.
+
+---
+
+## 3. Bibliographic Citations & Reference Markers
+
+Academic citation keys must be preserved untouched:
+- Numeric brackets: `[1]`, `[1, 3-5]`, `[12]`
+- Author-year citations: `(Smith et al., 2020)`, `(Goodfellow and Bengio, 2016)`
+- In Persian text, place brackets after the Persian punctuation or clause boundary consistently:
+  - *Example*: «این فرضیه پیش‌تر در مطالعات متعددی مورد تأیید قرار گرفته است [12].»
+
+---
+
+## 4. Academic Tone & Register
+
+- **Impersonal Rigor**: Persian academic prose prefers an objective, rigorous tone. Avoid casual expressions or emotional phrasing.
+- **Methodological Passives**: While literary translation bans passives, scientific methodology often employs legitimate passive constructions when the researcher is irrelevant:
+  - *Legitimate*: نمونه‌ها در دمای منفی بیست درجه سانتی‌گراد نگهداری شدند.
+  - *Calqued (Banned)*: نمونه‌ها توسط محققان در دمای منفی بیست درجه سانتی‌گراد نگهداری شدند. (Never use `توسط` with passive!)
+- **Numbers and Digits**: Retain **Western Latin digits** (`0123456789`) in scientific papers for measurements, statistical coefficients, sample sizes ($N=150$), and tables to ensure proper alignment.
+
+---
+
+## 5. Standard Academic Terminology Map
+| English Source | Standard Academic Persian | Avoid (Calques/Casual) |
+|---|---|---|
+| Empirical evidence | شواهد تجربی | مدارک امپیریکال |
+| Statistically significant | از نظر آماری معنادار | معنی‌دار از نظر آمار |
+| Hypothesis | فرضیه | حدس علمی |
+| Independent variable | متغیر مستقل | متغیر خودکفا |
+| Controlled trial | کارآزمایی کنترل‌شده | آزمایش کنترل |
+| Methodology | روش‌شناسی | متدولوژی |
+| Qualitative analysis | تحلیل کیفی | آنالیز کیفی |
