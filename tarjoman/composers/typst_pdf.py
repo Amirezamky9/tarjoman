@@ -109,10 +109,24 @@ class TypstPdfComposer(BaseComposer):
 
         # 4. Process and format paragraphs with math conversion
         for para in paragraphs:
-            # First wrap bare LaTeX symbols (e.g. \sigma outside $) so they render in math mode
-            para_with_math = self._wrap_bare_latex_symbols(para)
-            converted = self.convert_latex_math(para_with_math)
-            lines.append(converted)
+            para = para.strip()
+            if not para:
+                continue
+
+            para_lines = para.split("\n")
+            processed_lines = []
+            for line in para_lines:
+                stripped_line = line.strip()
+                heading_match = re.match(r"^(#{1,6})\s+(.+)$", stripped_line)
+                if heading_match:
+                    level = len(heading_match.group(1))
+                    heading_text = heading_match.group(2)
+                    typst_heading = "=" * level + " " + self.convert_latex_math(self._wrap_bare_latex_symbols(heading_text))
+                    processed_lines.append(typst_heading)
+                else:
+                    processed_lines.append(self.convert_latex_math(self._wrap_bare_latex_symbols(line)))
+
+            lines.append("\n".join(processed_lines))
             lines.append("")
 
         return "\n".join(lines).rstrip() + "\n"
@@ -162,25 +176,31 @@ class TypstPdfComposer(BaseComposer):
     @classmethod
     def _convert_math_expression(cls, expr: str) -> str:
         """Translate individual math expression from LaTeX to Typst syntax."""
-        # Fractions: \frac{a}{b} -> (a) / (b)
-        while r"\frac" in expr:
-            new_expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1) / (\2)", expr)
-            if new_expr == expr:
-                break
-            expr = new_expr
+        # Remove LaTeX \left and \right delimiters (Typst handles sizing automatically)
+        expr = re.sub(r"\\left\s*([(\[{|.])", r"\1", expr)
+        expr = re.sub(r"\\right\s*([)\]}|.])", r"\1", expr)
+        expr = re.sub(r"\\(?:left|right)\b", "", expr)
 
         # Roots: \sqrt[n]{x} -> root(n, x), \sqrt{x} -> sqrt(x)
         expr = re.sub(r"\\sqrt\[([^{}]+)\]\{([^{}]+)\}", r"root(\1, \2)", expr)
         expr = re.sub(r"\\sqrt\{([^{}]+)\}", r"sqrt(\1)", expr)
 
         # Text and font commands inside math
-        expr = re.sub(r"\\(?:text|mathrm)\{([^{}]+)\}", r'"\1"', expr)
+        expr = re.sub(r"\\(?:text|mathrm|operatorname)\{([^{}]+)\}", r'"\1"', expr)
         expr = re.sub(r"\\mathbf\{([^{}]+)\}", r"bold(\1)", expr)
         expr = re.sub(r"\\mathit\{([^{}]+)\}", r"italic(\1)", expr)
+        expr = re.sub(r'(?<!")\bsoftmax\b(?!")', '"softmax"', expr)
 
         # Subscripts and superscripts grouping: _{...} -> _(...)
         expr = re.sub(r"_\{([^{}]+)\}", r"_(\1)", expr)
         expr = re.sub(r"\^\{([^{}]+)\}", r"^(\1)", expr)
+
+        # Fractions: \frac{a}{b} -> (a) / (b)
+        while r"\frac" in expr:
+            new_expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1) / (\2)", expr)
+            if new_expr == expr:
+                break
+            expr = new_expr
 
         # Common operators and relation symbols
         for latex_sym, typst_sym in cls.MATH_SYMBOL_MAP.items():
@@ -247,11 +267,13 @@ class TypstPdfComposer(BaseComposer):
                 tf.write(typ_content)
                 tmp_file_path = tf.name
 
-            # 1. Try Python `typst` package
+            # 1. Try Python `typst` package (compile to bytes and write via Python for Unicode path safety)
             try:
                 import typst
-                typst.compile(tmp_file_path, output=output_pdf_path)
-                if os.path.exists(output_pdf_path) and os.path.getsize(output_pdf_path) > 0:
+                pdf_bytes = typst.compile(tmp_file_path)
+                if pdf_bytes and len(pdf_bytes) > 0:
+                    with open(output_pdf_path, "wb") as out_f:
+                        out_f.write(pdf_bytes)
                     return True
             except Exception:
                 pass
