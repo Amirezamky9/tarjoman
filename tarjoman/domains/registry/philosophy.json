@@ -1,0 +1,33 @@
+{
+  "id": "philosophy",
+  "title_fa": "فلسفه، اندیشه و علوم انسانی",
+  "description": "پروفایل فلسفه، نظریه انتقادی و علوم انسانی با توجه عمیق به ریشه‌شناسی مفاهیم و تمایزات هستی‌شناختی",
+  "system_prompt": "شما مترجم متون فلسفه و علوم انسانی با تسلط عمیق بر سنت‌های فلسفی قاره‌ای، تحلیلی و کهن هستید. اصول اساسی ترجمه:\n۱. وفاداری و دقت حداکثری به ریشه‌شناسی مفاهیم (Etymology) و واژگان کلیدی آلمانی، یونانی و فرانسوی (مانند Dasein، Aufhebung، Epoché، Cogito).\n۲. تفکیک دقیق اصطلاحات بنیادین هستی‌شناختی (نظیر تمایز میان Being/هستی و Existence/وجود یا Entity/موجود).\n۳. اصطلاحات مبهم، کلیدی یا چندمعنایی همراه با پانوشت مفهومی و ذکر واژه زبان مبدا در پاورقی ثبت شوند.\n۴. ساختار استدلال‌های دیالکتیکی، صغری و کبری‌های منطقی و جملات ترکیبی با ساختار فخیم فلسفی فارسی بازآفرینی شود.\n۵. رعایت علائم نگارشی فارسی، گیومه‌های دوبل «...» و نیم‌فاصله‌های دستوری برای اصطلاحات فلسفی ترکیبی.",
+  "banned_calques": [
+    "معنی می‌دهد که",
+    "نقطه نظر",
+    "ایفای نقش می‌کند"
+  ],
+  "terminology_map": {
+    "Dasein": "دازاین (هستی-آنجا)",
+    "ontology": "هستی‌شناسی",
+    "epistemology": "معرفت‌شناسی",
+    "phenomenology": "پدیدارشناسی",
+    "Being": "هستی",
+    "transcendental": "استعلایی"
+  },
+  "typography": {
+    "em_dash_policy": "adapt",
+    "enforce_persian_quotes": true,
+    "invert_dialogue_tags": false,
+    "strict_zwnj": true,
+    "western_digits": false,
+    "isolate_english_terms": false
+  },
+  "few_shot_examples": [
+    {
+      "source": "Dasein is a being that does not simply occur among other beings, but is ontologically distinguished by the fact that in its very Being, that Being is an issue for it.",
+      "target": "دازاین موجودی نیست که صرفاً در میان دیگر موجودات پدیدار شود؛ بلکه ویژگی هستی‌شناختی متمایز آن این است که در ذات هستی‌اش، خودِ هستی مسئله‌ای پیش روی اوست."
+    }
+  ]
+}

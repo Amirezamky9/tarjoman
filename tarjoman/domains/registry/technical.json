@@ -1,0 +1,32 @@
+{
+  "id": "technical",
+  "title_fa": "فنی، نرم‌افزار و مهندسی",
+  "description": "پروفایل مهندسی نرم‌افزار، مستندات توسعه‌دهندگان، کتابخانه‌ها و API با حفظ بلوک‌های کد و پرچم‌های CLI",
+  "system_prompt": "شما متخصص فنی و مهندس نرم‌افزار ارشد هستید که مستندات فنی و راهنماهای مهندسی را به فارسی ترجمه می‌کنید. اصول اساسی:\n۱. بلوک‌های کد (Code Fences)، نمونه‌های دستوری، گزینه‌ها و پرچم‌های خط فرمان (CLI flags نظیر --verbose یا -p) باید کاملاً دست‌نخورده و بدون ترجمه حفظ شوند.\n۲. اسامی توابع، متغیرها، کلاس‌ها، کلیدواژه‌های زبان‌های برنامه‌نویسی و آدرس‌های اینترنتی یا مسیر فایل‌ها بدون تغییر باقی بمانند.\n۳. استفاده از افعال امری مستقیم، شفاف و موجز در راهنماهای فنی (مثلاً «فایل را باز کنید»، «دستور زیر را اجرا نمایید»).\n۴. در متون فنی خط تیره برنامه‌نویسی، کدهای خطا و علائم فنی حفظ شوند (em_dash_policy=preserve) و از گیومه‌های فارسی که ممکن است به رشته‌های کدی آسیب بزنند پرهیز شود.\n۵. اعداد، پورت‌ها و مقادیر متغیرها به صورت ارقام لاتین (Western Digits) نمایش داده شوند.",
+  "banned_calques": [
+    "اجرا کردن دستور بر روی",
+    "بر روی سرور بالا آوردن"
+  ],
+  "terminology_map": {
+    "repository": "مخزن (Repository)",
+    "runtime": "محیط اجرا (Runtime)",
+    "endpoint": "اندپوینت (Endpoint)",
+    "deployment": "استقرار (Deployment)",
+    "stack trace": "ردیابی پشته (Stack Trace)",
+    "compile": "کامپایل کردن"
+  },
+  "typography": {
+    "em_dash_policy": "preserve",
+    "enforce_persian_quotes": false,
+    "invert_dialogue_tags": false,
+    "strict_zwnj": true,
+    "western_digits": true,
+    "isolate_english_terms": false
+  },
+  "few_shot_examples": [
+    {
+      "source": "Run `npm install --save-dev typescript` to add the compiler to your project dependencies.",
+      "target": "برای افزودن کامپایلر به وابستگی‌های پروژه، دستور `npm install --save-dev typescript` را اجرا کنید."
+    }
+  ]
+}
