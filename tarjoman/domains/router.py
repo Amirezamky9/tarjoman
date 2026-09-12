@@ -177,7 +177,7 @@ class DomainRegistry:
         if isinstance(domain_type, DomainType):
             key = domain_type
         elif isinstance(domain_type, str):
-            normalized = domain_type.strip().lower()
+            normalized = domain_type.strip().lower().replace("ي", "ی").replace("ك", "ک")
             if normalized in DOMAIN_ALIASES:
                 key = DOMAIN_ALIASES[normalized]
             else:
@@ -191,11 +191,11 @@ class DomainRegistry:
 
     def list_all(self) -> List[DomainProfile]:
         """
-        List all 10 domain profiles.
+        List all 10 domain profiles ordered by DomainType.
         """
         if len(self._cache) < len(DomainType):
             self.load_all()
-        return list(self._cache.values())
+        return [self._cache[domain] for domain in DomainType]
 
     def load_all(self) -> Dict[DomainType, DomainProfile]:
         """
@@ -212,7 +212,7 @@ DOMAIN_PATTERNS: Dict[DomainType, List[Tuple[str, float]]] = {
     DomainType.LITERARY: [
         (r"\b(whispered|murmured|gasped|shivered|sighed|sobbed|gazed|smiled|cried)\b", 3.5),
         (r"\b(protagonist|antagonist|dialogue|narrative|chapter|novel|fiction|storytelling|sorrow|shadows|twilight|heartbeat)\b", 2.5),
-        (r"(زیر لب گفت|نجوا کرد|فریاد زد|چشمانش|اشک‌هایش|لبخندی زد|نگاهی انداخت|آهی کشید|داستان|رمان|شخصیت اصلی)", 3.5),
+        (r"(زیر لب گفت|نجوا کرد|فریاد زد|چشمانش|اشک‌هایش|لبخندی زد|نگاهی انداخت|آهی کشید|داستان|(?<![آ-یء-ي])رمان(?![آ-یء-ي])|شخصیت اصلی)", 3.5),
     ],
     DomainType.SCIENTIFIC: [
         (r"\b(statistically\s+significant|p-value|confidence\s+interval|standard\s+deviation)\b", 4.0),
@@ -298,7 +298,7 @@ class DomainRouter:
         the best profile and a calculated confidence score between 0.0 and 1.0.
         """
         if override is not None:
-            normalized = override.strip().lower()
+            normalized = override.strip().lower().replace("ي", "ی").replace("ك", "ک")
             if normalized in DOMAIN_ALIASES:
                 target_domain = DOMAIN_ALIASES[normalized]
             else:
