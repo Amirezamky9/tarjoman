@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-After TARJOMAN-A0-PROD-1 is owner-frozen, any change that contradicts a locked Architecture Zero decision requires an ADR.
+After TARJOMAN-A0-PROD-3 is owner-frozen, any change that contradicts a locked Architecture Zero decision requires an ADR.
 
 ## Naming
 

@@ -43,6 +43,13 @@ This register is for traceability. Architectural patterns may be learned from th
 | ManaTTS Persian | https://github.com/MahtaFetrat/ManaTTS-Persian-Tacotron2-Model | Persian TTS baseline | README states CC0 model weights; verify artifacts |
 | sherpa-onnx | https://github.com/k2-fsa/sherpa-onnx | cross-platform ONNX speech runtime | Apache-2.0 code; model licenses remain separate |
 
+| Model Context Protocol 2026-07-28 | https://blog.modelcontextprotocol.io/posts/2026-07-28/ | stateless MCP core + Tasks extension | official specification release |
+| A2A 0.3 specification | https://a2a-protocol.org/v0.3.0/specification/ | optional agent-to-agent discovery/task lifecycle | official specification |
+| OWASP File Upload Cheat Sheet | https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html | upload/storage boundary | security guidance |
+| OWASP SSRF Prevention Cheat Sheet | https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html | custom endpoint/network security | security guidance |
+| SQLite Backup API | https://www.sqlite.org/backup.html | consistent live DB backup | official SQLite docs |
+| SQLite WAL | https://www.sqlite.org/wal.html | same-host WAL constraints/concurrency | official SQLite docs |
+
 ## License policy
 
 1. Do not copy code from GPL/AGPL sources into Tarjoman MIT core.

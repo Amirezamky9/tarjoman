@@ -1,12 +1,12 @@
 # Tarjoman Architecture Zero
 
-**Revision:** TARJOMAN-A0-PROD-2  
+**Revision:** TARJOMAN-A0-PROD-3  
 **Date:** 2026-09-21  
 **Fork:** Amirezamky9/tarjoman  
 **Upstream baseline:** `58e97b802aa3efb318135a5923231c0a08550c4a`  
 **Architecture branch:** `arch/production-zero`  
-**Status:** READY_FOR_OWNER_FREEZE  
-**Supersedes:** TARJOMAN-A0-PROD-1
+**Status:** OWNER_FREEZE_CANDIDATE  
+**Supersedes:** TARJOMAN-A0-PROD-2
 
 > This document is the normative engineering baseline for turning Tarjoman from a promising translation/quality toolkit into a production-grade, Persian-first content transformation engine. Once the owner freezes this revision, implementation changes that contradict a locked decision require an ADR.
 
@@ -17,9 +17,10 @@ When two project documents disagree, use this order:
 1. `ARCHITECTURE_ZERO.md`
 2. accepted ADRs under `docs/adr/`
 3. `ROADMAP.md`
-4. current contracts/tests
-5. `research/`
-6. README / historical skillpacks / examples
+4. `AGENTS.md` (execution summary; cannot override 1–3)
+5. current contracts/tests
+6. `research/` and `review/`
+7. README / historical skillpacks / examples
 
 Research documents are evidence, not normative requirements. Existing README claims that conflict with code or this architecture must be corrected during implementation.
 
@@ -146,86 +147,173 @@ CLI, Python SDK, FastAPI, MCP, and A2A are adapters over the same application se
 
 ## 4. Canonical intermediate representation (IR)
 
-All input formats normalize into one canonical representation before translation.
+All input formats normalize into one canonical representation. **Workspace**, **Project**, **Operation**, **Artifact**, and **Segment Version** are distinct concepts.
 
-Minimum contracts:
+### 4.1 Workspace
 
-### `ProjectSpec`
-- project_id
-- source_language
-- target_language
-- domain_profile_id
-- style_profile_id
-- privacy_policy
-- glossary_version
-- translation_memory_scope
-- provider_policy
-- created_at / updated_at
+A `Workspace` is the persistence and trust boundary:
+- one SQLite database,
+- one content-addressed artifact store,
+- one job queue/lease namespace,
+- one set of projects,
+- one network/license/security policy envelope.
 
-### `Artifact`
-- artifact_id
-- project_id
-- kind: text | document | subtitle | transcript | notes | minutes
-- source_uri or logical source name
-- source_hash
-- parser_name + parser_version
-- metadata
-- segments[]
+Standalone CLI normally creates one workspace in a project directory. Server mode opens one configured workspace and may host multiple logical projects inside it. Project state is never stored in the user-global config directory.
 
-### `Segment`
-- stable segment_id
-- source_text
-- source_span / location
-- translatable bool
-- protected_spans[]
-- structural_context
-- preceding/following context references
-- translation
-- review status
-- findings[]
-- provenance
+### 4.2 ProjectSpec
 
-### `ProtectedSpan`
-- span_id
-- type: code | url | email | math | placeholder | citation | tag | timestamp | speaker | other
-- original_text
-- integrity_policy: exact | normalized | mapped
+`ProjectSpec` contains durable project defaults:
+- project_id,
+- name,
+- optional default_source_language,
+- optional default_target_language,
+- default_domain_profile_id,
+- default_style_profile_id,
+- default_workflow_profile_id,
+- privacy_policy_id,
+- provider_policy_id,
+- review_policy_id,
+- created_at / updated_at.
 
-### `RunRecord`
-- run_id
-- project_id
-- operation
-- status: queued | running | waiting_review | completed | failed | cancelled
-- stage checkpoints
-- config hash
-- provider/model
-- prompt hashes
-- started_at / finished_at
-- usage / cost / latency metadata
-- error class + retry metadata
+Source/target language defaults are optional. A Persian meeting, a multilingual subtitle file, and a Persian TTS operation do not require a fake translation language pair.
 
-Stable IDs and source hashes are mandatory so caching, review, and resume are trustworthy.
+### 4.3 OperationSpec
 
-## 5. Pipeline and state machine
+Every transformation creates an immutable `OperationSpec`:
+- operation_id,
+- project_id,
+- operation_type: translate | review | formalize | summarize | transcribe | synthesize | export | evaluate,
+- input_artifact_ids,
+- optional source_language / target_language overrides,
+- domain_profile_id,
+- style_profile_id,
+- workflow_profile_id,
+- resolved policy IDs,
+- strategy ID,
+- config snapshot hash.
 
-The existing “5-pass” concept is retained as a product idea but redefined as an explicit, measurable workflow:
+The OperationSpec is the semantic input to idempotency/cache/provenance.
+
+### 4.4 Artifact
+
+`Artifact` is an immutable logical artifact version:
+- artifact_id,
+- project_id,
+- kind: source_document | translated_document | subtitle | audio | video | transcript_raw | transcript_clean | notes | minutes | speech_plan | synthesized_audio | evaluation_report | other,
+- raw_sha256 for imported bytes when applicable,
+- canonical_content_hash for parsed/normalized content,
+- language_tags[],
+- source_uri only as provenance (not required for later access),
+- parser/producer name + version,
+- parent_artifact_ids[],
+- sensitivity / retention metadata,
+- segments[] or blob reference.
+
+Imported source files are copied into the managed artifact store by default so a project remains reproducible if the original external path disappears.
+
+### 4.5 Segment
+
+`Segment` is a stable logical location, not mutable translated text:
+- segment_id,
+- artifact_id,
+- structural locator (paragraph/cue/cell/run path),
+- source_text,
+- source_content_hash,
+- language spans / code-switch metadata,
+- translatable bool,
+- protected_spans[],
+- structural_context.
+
+Stable segment IDs are based on artifact identity + structural locator, **not text alone**, so repeated identical paragraphs remain distinct. Content hashes are separate and used for cache/TM matching.
+
+### 4.6 SegmentVersion
+
+Generated/reviewed text lives in immutable `SegmentVersion` records:
+- segment_version_id,
+- segment_id,
+- kind: source | draft | revised | human_edit | approved,
+- text,
+- parent_version_id,
+- strategy/provider/model/prompt/profile versions,
+- glossary/context/result-cache hashes,
+- author: system | model | human principal,
+- created_at,
+- findings/provenance.
+
+A new edit/version never overwrites historical text.
+
+### 4.7 ProtectedSpan
+
+`ProtectedSpan` includes:
+- span_id,
+- type: code | url | email | math | placeholder | citation | tag | timestamp | speaker | other,
+- original_text,
+- integrity_policy: exact | normalized | mapped.
+
+Placeholder tokens are collision-resistant and scoped to the operation/segment. Finalization fails if a required placeholder is missing, duplicated unexpectedly, altered, or unresolved. Silent “best effort” restoration is forbidden.
+
+### 4.8 RunRecord and canonical status vocabulary
+
+All job/run interfaces use exactly:
+
+`QUEUED | RUNNING | WAITING_REVIEW | SUCCEEDED | FAILED | CANCELLED`
+
+`RunRecord` stores:
+- run_id / job_id / operation_id / project_id,
+- status,
+- stage checkpoints,
+- resolved config hash,
+- provider/model,
+- prompt/profile/rule/strategy IDs,
+- started/finished timestamps,
+- usage/cost/latency metadata,
+- typed error + retry metadata.
+
+No alternative public status spelling such as `completed` is permitted.
+
+### 4.9 Language modeling rule
+
+Language is attached to artifacts/segments/operations, not assumed globally from the project. BCP-47-style tags are preferred where practical (`fa`, `en`, variants when needed). Mixed-language spans may be tagged without splitting the artifact solely for language reasons.
+
+Stable IDs, raw hashes, canonical hashes, and immutable versions are mandatory so caching, review, resume, and audit remain trustworthy.
+
+## 5. Runtime pipeline versus evaluation pipeline
+
+The existing “5-pass” idea remains a translation strategy, but **runtime generation and comparative evaluation are different pipelines**.
+
+### 5.1 Runtime transformation pipeline
 
 1. **Ingest / protect**  
-   Parse structure, protect non-translatable spans, create stable segments.
+   Parse structure, copy managed source artifact, protect non-translatable spans, create stable segments.
 
 2. **Analyze / plan**  
-   Detect/confirm language and domain; build document summary, terminology candidates, entity/name ledger, style policy, and chunk plan.
+   Resolve operation/domain/style/workflow policies; build glossary/entities/context and chunk plan.
 
 3. **Generate**  
-   Produce translation candidates using the configured backend and project context.
+   Produce a draft or other requested transformation through the selected strategy/provider.
 
 4. **Review / revise**  
-   Independent critic or rule-driven review produces typed findings. A revision pass may correct semantic/style issues.
+   Create typed semantic/style/terminology findings and, where strategy allows, a bounded revision.
 
-5. **Polish / validate / evaluate**  
-   Apply safe Persian normalization, enforce hard constraints, restore protected spans, run independent metrics, and create final artifacts.
+5. **Normalize / validate / finalize**  
+   Apply only safe Persian normalization; restore protected spans; enforce hard invariants; persist immutable versions/artifacts and provenance.
 
-A project may skip stages explicitly (for example `polish-only`), but no hidden stage skipping is allowed.
+The production runtime may run **reference-free hard checks** and task-specific policy gates. It does **not** require BLEU/COMET/human MQM on every user request.
+
+### 5.2 Evaluation pipeline
+
+Evaluation consumes completed candidate artifacts and frozen evaluation cases:
+- exact invariants,
+- reference metrics where references exist,
+- optional COMET/XCOMET/DocCOMET,
+- blind comparative review,
+- human MQM/release review.
+
+Evaluation never mutates the candidate it scores. A correction suggested by evaluation becomes a new operation/version.
+
+### 5.3 Strategy rule
+
+`direct-v1`, `reflect-revise-v1`, and future strategies are bounded implementations over the same stages/contracts. No hidden stage skipping or unlimited self-reflection loops are allowed.
 
 ## 6. Model Harness
 
@@ -287,75 +375,84 @@ class ModelProvider(Protocol):
 - provider fallback only when policy explicitly allows it,
 - no secrets in logs.
 
-## 7. Context, terminology, and translation memory
+## 7. Context, result cache, terminology, and translation memory
 
-### 7.1 Translation memory
+**Result Cache and Translation Memory are intentionally different systems.**
 
-Replace JSON-only cache as the production source of truth with **SQLite WAL** in a per-user application data directory.
+### 7.1 Result Cache
 
-Core tables:
-- projects
-- artifacts
-- segments
-- segment_versions
-- translation_memory
-- glossary_terms
-- style_profiles
-- entity_ledger
-- run_records
-- quality_findings
-- migrations/schema_meta
+The result cache is a reproducibility/performance optimization for generated work.
 
-SQLite is sufficient for a lightweight local/server product and requires no separate service.
-
-### 7.2 Cache key
-
-A translation cache key must include at least:
-
-- normalized source text hash,
-- source/target languages,
-- domain/style profile versions,
-- glossary hard-constraint hash,
-- relevant context hash,
+Cache key includes:
+- canonical source/input hash,
+- operation type,
+- source/target language,
+- strategy version,
 - provider + model,
-- prompt version,
-- translation strategy version.
+- prompt/rule/domain/style/workflow versions,
+- hard-glossary hash,
+- relevant context hash,
+- generation parameters/seed where material.
 
-This prevents stale translations after terminology/style/model changes.
+A relevant change must miss the cache. Cache entries can be evicted without losing approved translation history.
 
-### 7.3 Professional interoperability
+### 7.2 Translation Memory (TM)
 
-Support import/export progressively:
-- TMX 1.4b for translation memory,
-- TBX for termbases,
-- XLIFF 2.x for localization interchange.
+TM is a durable bilingual memory of reusable translation decisions. It is **not** a provider-response cache.
 
-Do not implement all standards in Phase 1, but the data model must not block them.
+A TM unit stores:
+- source text + language,
+- target text + language,
+- project/domain/style metadata,
+- source artifact/segment provenance,
+- review state and author,
+- created/updated versions,
+- optional quality/approval notes.
 
-### 7.4 Terminology policy
+Default promotion policy:
+- human-approved segment versions may enter authoritative TM,
+- reviewed model output may enter TM only if project policy explicitly permits,
+- raw model drafts never become authoritative TM merely because they were cached.
+
+### 7.3 Exact and fuzzy reuse
+
+Exact TM lookup can suggest/auto-apply according to review policy. Fuzzy TM retrieval returns scored candidates plus provenance; it does not silently replace the current segment.
+
+Context/model/prompt are **not** part of TM identity. They belong to provenance and can help rank whether an old TM unit is appropriate.
+
+### 7.4 Terminology
 
 Terms have:
 - source term,
-- approved target,
-- domain,
+- approved target(s),
+- domain/language,
 - status: suggested | approved | forbidden,
-- case/inflection policy,
+- morphology/inflection policy,
 - notes/source,
 - version.
 
-“Approved” terms are hard constraints. “Suggested” terms are context hints.
+Approved terms are hard constraints only when the term is applicable to that segment under its matching/inflection policy. The validator reports applicability and compliance rather than forcing a literal form where Persian grammar requires an approved variant.
 
 ### 7.5 Long-form context
 
-For books/manuals:
-- document-level summary,
+For books/manuals/documents:
+- document/project summary,
 - neighboring segments,
-- project glossary,
+- approved glossary,
 - named entities,
 - character voice/register ledger where applicable,
-- retrieved TM matches.
+- retrieved TM candidates.
 
-Context is bounded by a token budget and recorded in provenance.
+Context is bounded by a deterministic budget and its selection/hash is stored in provenance.
+
+### 7.6 Professional interoperability
+
+Progressively support:
+- TMX 1.4b for TM interchange,
+- TBX for termbases,
+- XLIFF 2.x for localization interchange.
+
+The internal schema must preserve information needed for these exports without making any one standard the internal database format.
 
 ## 8. Persian Quality Engine
 
@@ -388,32 +485,41 @@ Current regex anti-calque rules are retained initially as **detectors**. Semanti
 
 Optional adapters may use Hazm, DadmaTools, Parsivar, or other libraries behind Tarjoman-owned interfaces. No single external NLP library becomes a core architectural dependency.
 
-### 8.4 Profiles
+### 8.4 Profile taxonomy — names may not be overloaded
 
-Profiles are versioned data, not hardcoded branches:
-- literary
-- scientific
-- philosophy
-- legal
-- technical
-- medical
-- media
-- financial
-- classical
-- transcreation
-- meeting
-- lecture_notes
-- subtitle
-- general
+The word “profile” is split into explicit types:
 
-Each profile defines:
-- register/style,
-- digit policy,
-- terminology sources,
-- hard/soft QA rules,
-- context strategy,
-- human-review requirement,
-- output templates.
+**DomainProfile** — subject matter:
+- general, literary, scientific, philosophy, legal, technical, medical, media, financial, classical, transcreation.
+
+**StyleProfile** — language presentation:
+- formal/neutral/conversational/literary,
+- audience,
+- digit/punctuation/loanword policy,
+- terminology/style guidance.
+
+**WorkflowProfile** — transformation shape:
+- translation,
+- subtitle,
+- meeting,
+- lecture_notes,
+- formal_minutes,
+- audiobook,
+- polish_only.
+
+**ReviewPolicy** — approval/human-review requirements.
+
+**PrivacyPolicy / ProviderPolicy / LicensePolicy** — security/runtime eligibility.
+
+**Capability Bundle** — release/install grouping such as core/asr/tts/server; it is never called a content “profile”.
+
+High-risk domain defaults:
+- legal and medical can generate drafts,
+- `APPROVED` status requires human review by default,
+- a project owner may explicitly override that default, and the override is stored in provenance/audit history.
+
+Each profile/policy has an immutable schema/version ID.
+
 
 ## 9. Evaluation architecture
 
@@ -448,7 +554,7 @@ Create a versioned `evals/golden/` corpus with:
 For a release candidate:
 - 100% protected-span round trip on invariant suite.
 - 100% preservation of required numbers/units/identifiers.
-- 100% hard-glossary compliance on deterministic test set.
+- 100% compliance for **applicable** hard-glossary constraints in the deterministic test set, including approved morphology/inflection variants.
 - zero silent source echo in real translation mode.
 - no new critical MQM finding in golden regression set.
 - metric non-regression against frozen baseline; statistically compare systems when sample size permits.
@@ -544,9 +650,7 @@ Never invent owners, due dates, or decisions absent from the transcript.
 ## 12. Interfaces
 
 ### 12.1 CLI
-Must remain the primary lightweight interface.
-
-Planned command groups:
+Primary lightweight interface:
 - `tarjoman translate`
 - `tarjoman review`
 - `tarjoman lint`
@@ -555,63 +659,130 @@ Planned command groups:
 - `tarjoman glossary ...`
 - `tarjoman tm ...`
 - `tarjoman compose ...`
-- `tarjoman transcribe ...` (audio extra)
+- `tarjoman transcribe ...` (ASR extra)
+- `tarjoman speak ...` / `tarjoman pronunciation ...` (TTS extra)
 - `tarjoman serve` (server extra)
 - `tarjoman mcp` (MCP extra)
 
 ### 12.2 Python SDK
-Typed application-service API; no CLI subprocess required for integrations.
+Typed application-service API; integrations never need to spawn the CLI.
 
 ### 12.3 REST / jobs
-Optional FastAPI server:
+Optional FastAPI adapter:
 - versioned `/v1` endpoints,
-- async job API for long tasks,
-- idempotency key support,
-- status/progress/cancel,
-- OpenAPI generated from Pydantic contracts,
-- local bind by default; auth required when exposed beyond localhost.
+- persistent long-job API,
+- idempotency,
+- progress/cancel,
+- OpenAPI generated from application contracts,
+- loopback bind by default.
 
 ### 12.4 MCP
-Implement the current MCP specification through the official SDK when the phase begins.
+Tarjoman targets the current tested MCP specification/SDK at implementation time and records that protocol revision in its compatibility matrix.
 
-Initial tools:
-- tarjoman.translate
-- tarjoman.review
-- tarjoman.project.create
-- tarjoman.project.status
-- tarjoman.glossary.upsert
-- tarjoman.eval
-- tarjoman.transcribe
-- tarjoman.notes.generate
-- tarjoman.export
+As of Architecture Zero review (2026-09-21), MCP `2026-07-28` has a stateless core and long-running Tasks extension. Tarjoman maps its **existing core job engine** to MCP task semantics where supported; MCP is not a second job database.
 
-Tools return structured IDs/artifacts, not giant opaque prose blobs when a resource handle is more appropriate.
+Initial capabilities:
+- translate,
+- review,
+- project create/status,
+- glossary upsert,
+- TM search,
+- eval run,
+- transcribe,
+- notes/minutes generate,
+- speak,
+- export.
+
+Large artifacts are returned by resource/artifact handle, not giant inline payloads.
 
 ### 12.5 A2A
-A2A is optional and layered above application services. Use it only when Tarjoman acts as an independent remote agent. MCP remains the simpler tool surface for most coding/assistant agents.
+A2A remains optional for an independently deployed Tarjoman agent. As of this review, A2A 0.3 defines discovery and task collaboration. It is **not** on Core v1 critical path; Python/CLI/MCP cover normal assistant/tool integration.
 
-## 13. Security and privacy
+### 12.6 Interface equivalence
+Interfaces may differ in transport/auth UX but must call the same application use cases. No CLI-only, API-only, or MCP-only business logic is permitted.
+
+## 13. Security, privacy, network, and threat model
 
 ### 13.1 Default posture
-- local project storage,
+- local workspace storage,
 - no telemetry by default,
-- no source text in info logs,
-- secrets only via environment/keyring/provider secret store,
-- explicit policy for cloud provider use.
+- no raw source/transcript/audio in normal logs,
+- secrets only through environment/keyring/secret provider,
+- cloud/model/network use is explicit policy.
 
-### 13.2 Provider privacy classes
-A project can be:
-- `local_only` — network model calls forbidden,
-- `cloud_allowed` — approved providers may receive content,
-- `restricted` — only explicitly allowlisted providers/models.
+### 13.2 NetworkPolicy is global, not provider-only
 
-Policy is enforced in the Model Harness, not prompts.
+`local_only` forbids **all** unapproved egress:
+- LLM providers,
+- remote OCR/document services,
+- model/font/CDN downloads,
+- telemetry/update checks,
+- remote TTS/ASR,
+- arbitrary URL fetches.
 
-### 13.3 Prompt injection
-Input content is quoted/segmented as data. It cannot change system instructions. Tool interfaces have no arbitrary shell/filesystem access. Agent adapters expose only Tarjoman capabilities.
+`cloud_allowed` and `restricted` enumerate allowed adapters/destinations. Every network-capable adapter asks the same NetworkPolicy gate.
 
-### 13.4 Sensitive output
-Logs contain hashes/IDs and operational metadata. Debug content logging is opt-in and visibly marked unsafe for sensitive projects.
+Model/font assets required for offline artifacts must be local/package-managed; generated HTML defaults self-contained/offline.
+
+### 13.3 SSRF and provider endpoint rule
+
+Custom provider base URLs are trusted administrator/project configuration, never arbitrary untrusted per-request URLs in server/MCP calls. Server mode may optionally enforce hostname allowlists. Redirect policy and special/private address access are controlled; unknown URL schemes are rejected.
+
+### 13.4 Prompt injection
+
+Retrieved/source content is data:
+- translation/review model requests do not enable arbitrary tool calls,
+- source text cannot grant permissions or alter Network/License/Privacy policy,
+- side-effectful agent actions require application policy/authorization, not a sentence in a document,
+- structured response validation happens before persistence.
+
+### 13.5 File/parser boundary
+
+Untrusted file ingestion:
+- size/count/decompression limits,
+- path traversal/symlink rejection,
+- MIME + parser validation,
+- temporary workspace quotas,
+- generated names rather than trusting uploaded names,
+- artifacts stored outside any directly served web root.
+
+Archive/document adapters must defend against zip bombs and external entity/network resolution.
+
+### 13.6 External process runner
+
+FFmpeg, Typst, LibreOffice, or other binaries:
+- execute with argument arrays, never `shell=True`,
+- have timeout/cancellation,
+- run in controlled temp/output directories,
+- receive no secrets unless required,
+- capture bounded logs,
+- capability/version checked before use.
+
+### 13.7 Data at rest — explicit scope
+
+Tarjoman v1 **does not claim application-level content encryption by default**. Sensitive deployments must use OS/disk/volume encryption and filesystem permissions. If application-level encrypted workspaces are later added, that requires an ADR and migration/recovery design.
+
+Secret storage via OS keyring is separate from content-at-rest encryption.
+
+### 13.8 Deletion/retention
+
+Deleting a logical artifact removes references immediately. Content-addressed blobs are garbage-collected only when no live artifact reference remains and retention policy permits deletion. Derived audio/embeddings/cache entries tied to deleted voice/source artifacts follow the same lineage cleanup policy.
+
+### 13.9 Threat-model boundary
+
+v1 protects against:
+- accidental leakage through logs/config,
+- path traversal/upload abuse,
+- prompt-injected tool authorization,
+- uncontrolled network egress,
+- unauthorized remote API use,
+- dependency/model-license mistakes.
+
+v1 does not claim protection from:
+- a fully compromised OS account/root,
+- malicious local administrators,
+- hardware/firmware compromise,
+- forensic recovery from an unencrypted disk.
 
 ## 14. Reliability, performance, and observability
 
@@ -741,12 +912,27 @@ Releases:
 
 `main` should be branch-protected after the first production CI gates exist.
 
-## 18. Compatibility policy
+## 18. Versioning and compatibility policy
 
-- Semantic Versioning for public Python/CLI/API interfaces.
-- Schema migrations are monotonic and tested from previous release fixtures.
-- Prompt/profile versions are explicit and stored with runs.
-- A project created by a released version must either migrate automatically or fail with a precise migration message; silent data loss is forbidden.
+Version domains are distinct:
+
+1. **Package version** — Semantic Versioning for released Tarjoman code.
+2. **DB schema version** — monotonically increasing migrations/checksums.
+3. **IR/schema version** — serialized contract compatibility.
+4. **REST API version** — URL/media contract, initially `v1`.
+5. **MCP/A2A compatibility** — tested protocol/SDK revision matrix.
+6. **Prompt/profile/rule/strategy IDs** — immutable behavior versions.
+7. **Model/Data/Service manifests** — immutable source revision/hash + reviewed policy.
+8. **Golden corpus version** — frozen benchmark data revision.
+
+Before package 1.0, breaking Python/CLI behavior is allowed only when roadmap/notes make it explicit. Once Core v1.0 ships, public contracts follow SemVer and migration policy.
+
+A workspace created by a released version must either:
+- open directly,
+- migrate through tested forward migrations,
+- or fail read-only with a precise compatibility message.
+
+Silent downgrade, silent destructive migration, and opening a newer unsupported schema for writing are forbidden.
 
 ## 19. Locked decision ledger
 
@@ -787,41 +973,88 @@ Releases:
 | D33 | Architecture-conformance tests enforce dependency direction, optional-dependency isolation, no direct provider SDK in core, and no network in deterministic tests. |
 | D34 | One implementation work package per PR by default; architecture-changing code is blocked until its ADR is accepted. |
 | D35 | Provider/model fallback is explicit policy; silent fallback to a different model, cloud, language, or quality tier is forbidden. |
+| D36 | Workspace is the persistence/trust boundary; project state is not split between user-global and project-local databases. |
+| D37 | Result Cache and Translation Memory are separate systems with different keys, lifecycle, and authority. |
+| D38 | Canonical public job status vocabulary is QUEUED/RUNNING/WAITING_REVIEW/SUCCEEDED/FAILED/CANCELLED. |
+| D39 | Runtime transformation does deterministic validation; comparative/reference evaluation is an out-of-band pipeline. |
+| D40 | DomainProfile, StyleProfile, WorkflowProfile, Review/Privacy/Provider/License policies, and Capability Bundles are distinct types. |
+| D41 | Server v1 is single-tenant per workspace with scoped high-entropy API principals/tokens; full multi-user IAM/passwords are deferred. |
+| D42 | A single workspace has one authoritative scheduler lease domain; embedded server mode uses one scheduler owner, not multiple Uvicorn schedulers. |
+| D43 | Content-addressed artifact blobs are workspace-scoped, reference-counted/reachability-GC'd, and backed up with a consistent DB snapshot manifest. |
+| D44 | NetworkPolicy covers all egress, not only LLM providers; local_only means no hidden CDN/model/OCR/telemetry network path. |
+| D45 | Custom network endpoints are trusted configuration, not untrusted request parameters; server-mode SSRF controls apply. |
+| D46 | v1 third-party runtime plugins are not auto-loaded; built-in/explicit adapters only. A third-party plugin ABI requires a later ADR/security review. |
+| D47 | License eligibility depends on deployment purpose and distribution mode, not the word “production”; unknown status never auto-passes. |
+| D48 | Core v1.0 is not blocked by ASR, TTS, Web UI, or A2A; those are separately gated capability tracks. |
+| D49 | High-risk legal/medical outputs require human approval by default before APPROVED status; explicit policy overrides are audited. |
+| D50 | MCP long-running Tasks map onto the core Tarjoman job engine; protocol adapters never become a second source of job truth. |
 
-## 20. Definition of “production-ready v1”
+## 20. Release milestones and production definitions
 
-Tarjoman v1 is not declared production-ready until all are true:
+### 20.1 Core v1.0 — critical path
 
-- real provider path works end-to-end and default CLI never echoes input,
-- state is migrated from ad-hoc JSON to tested SQLite schema,
-- critical constraints have deterministic tests,
-- golden English→Persian corpus and regression reports exist,
-- at least one external quality metric is integrated,
-- human MQM review has been performed on release candidate samples,
-- TXT/MD/HTML/SRT/VTT are reliable; DOCX available if its fidelity gate passes,
-- long jobs resume after interruption,
-- structured logs and provenance are complete,
-- provider timeouts/retries/rate limits are bounded and tested,
-- secrets are not logged or stored in project files,
-- MCP tool surface passes contract tests,
-- docs describe actual implemented flags/features only,
-- CI gates main and a clean package install succeeds.
+Core v1.0 can ship when:
+- real provider translation works end-to-end; no silent echo,
+- Workspace/SQLite/artifact store/migrations/result cache/TM are proven,
+- deterministic Persian constraints and golden regression suite exist,
+- at least one optional external MT metric integration is available,
+- human MQM release review has been performed,
+- TXT/MD/HTML/SRT/VTT are reliable; DOCX ships only if its fidelity gate passes,
+- long translation jobs resume after crash/cancel,
+- provenance/redacted logging/policy gates are complete,
+- CLI/Python and MCP/server core paths pass conformance,
+- clean wheel install and release/security/license checks pass.
+
+**Core v1.0 does not wait for ASR, TTS, Web UI, or A2A.**
+
+### 20.2 ASR/Knowledge capability release
+
+ASR is advertised only after:
+- media ingestion safety,
+- Persian ASR evaluation,
+- transcript lineage,
+- resume/recovery,
+- meeting/lecture evidence links,
+- model/data license manifests,
+- capability-specific release hardening.
+
+### 20.3 TTS capability release
+
+TTS is advertised only after:
+- at least one license-eligible engine for the intended deployment purpose,
+- pronunciation/G2P/speech-plan tests,
+- listening/intelligibility/long-form/runtime report,
+- reference-voice retention/provenance/consent policy where cloning exists,
+- capability-specific release hardening.
+
+### 20.4 UI and A2A
+
+Web UI and A2A may ship in later minor releases without delaying Core v1. MCP remains the primary agent-tool surface.
+
+### 20.5 “Production-ready” is capability-scoped
+
+A release may be:
+- Core: production-ready,
+- ASR: experimental,
+- TTS: unavailable,
+without contradiction. README/badges must state capability maturity separately.
 
 ## 21. Deferred, not ambiguous
 
-The following are intentionally deferred and therefore **must not block Foundation work**:
+Intentionally deferred:
+- Web UI framework until REST/application contracts stabilize.
+- Desktop/Tauri client.
+- Exact PDF-layout reconstruction.
+- Full multi-user human IAM/password/session product.
+- Distributed scheduler/Redis/Celery/Kafka/Postgres.
+- Third-party plugin ABI/sandbox.
+- Default frontier cloud model.
+- Default diarization engine until bake-off/license review.
+- Application-level encrypted workspace format.
+- Custom model training/fine-tuning.
+- A2A as a Core v1 requirement.
 
-- Web UI framework: no UI is required for core v1.
-- Desktop/Tauri app: later adapter.
-- Exact PDF layout preservation: separate milestone.
-- Default frontier cloud model: runtime config, not architecture.
-- Default diarization model: adapter choice after license/quality bake-off.
-- Multi-user database server/Postgres: only if SQLite measurements justify it.
-
-The default action for a deferred item is **do not implement it early**.
-
-
----
+The default action is **do not implement deferred work early**. A coding agent may create an ADR proposal when measured evidence justifies pulling one forward.
 
 ## 22. Implementation architecture: layers and dependency law
 
@@ -929,108 +1162,168 @@ Rules:
 - errors crossing CLI/API/MCP are mapped to stable machine codes,
 - raw source content is excluded from normal error messages.
 
-## 25. Storage architecture
+## 25. Workspace and storage architecture
 
-### 25.1 Split metadata from binary artifacts
+### 25.1 Workspace layout
 
-SQLite WAL stores metadata and text-sized records. Large files use an artifact store:
+A workspace is explicit:
 
 ~~~text
-<project-root>/.tarjoman/
-  project.toml
-  state.sqlite3
-  artifacts/
-    sha256/
-      ab/
-        <full-sha256>
+<workspace-root>/
+  tarjoman.toml                 # workspace/project defaults; no secrets
+  .tarjoman/
+    state.sqlite3               # workspace metadata/jobs/projects/TM/etc.
+    artifacts/
+      sha256/
+        ab/
+          <full-sha256>
+    tmp/
+    locks/
+    backups/
   exports/
-  locks/
 ~~~
 
-Audio, video, PDFs, DOCX, generated WAV/MP3 and other large binaries are never stored as SQLite BLOBs in v1.
+User-global application data stores user preferences/provider aliases/keyring references only; **never project/TM/job state**.
 
-### 25.2 Artifact record
+Server mode opens exactly one workspace root per process in v1. That workspace may contain multiple logical Project records.
 
-Every stored binary has:
-- artifact_id,
-- sha256,
-- byte_size,
-- MIME type,
-- logical filename,
-- producer + version,
-- parent artifact IDs,
-- created_at,
-- retention/sensitivity policy.
+### 25.2 Managed source rule
 
-Writes:
-1. stream to temp file,
-2. hash while writing,
-3. fsync where supported,
-4. atomic rename to content-addressed path,
-5. commit DB metadata.
+On ingestion, source bytes are copied to the artifact store by default and hashed. External source paths/URLs are provenance only. A future linked-source mode requires an explicit option and cannot be the default reproducibility path.
 
-Partial artifacts are never presented as completed.
+### 25.3 Artifact blob lifecycle
 
-### 25.3 Database rules
+SQLite stores metadata/text-sized records; large binaries remain files.
 
-- numbered SQL migrations,
-- migration transaction where SQLite permits,
+Each blob:
+- SHA-256,
+- byte size,
+- MIME,
+- producer/version,
+- parent lineage,
+- retention/sensitivity.
+
+Deduplication is **within one workspace**, not global across unrelated workspaces.
+
+Deletion:
+1. logical artifact row becomes deleted/tombstoned according to audit policy,
+2. references from live derivatives are checked,
+3. blob GC removes unreferenced bytes only after retention rules permit,
+4. cache/derived voice state tied solely to deleted input is removed.
+
+### 25.4 Atomic writes
+
+1. create temp file inside workspace temp/store filesystem,
+2. stream + enforce size quota + hash,
+3. flush/fsync where supported,
+4. validate expected format/size,
+5. atomic rename into content-addressed location,
+6. commit metadata transaction.
+
+No DB row points to a partial “completed” blob.
+
+### 25.5 Database rules
+
+- numbered immutable SQL migrations with checksums,
 - `PRAGMA foreign_keys=ON`,
-- WAL mode,
+- WAL for local same-host workspace,
 - explicit busy timeout,
-- indexes justified by query plan/benchmarks,
-- no destructive migration without backup/forward-migration plan,
 - repository layer owns SQL,
-- schema version checked before application work starts.
+- migration lock before schema changes,
+- network filesystem storage is unsupported for WAL workspace DB in v1.
+
+### 25.6 Consistent backup
+
+Do not naïvely copy a live WAL database.
+
+Backup procedure:
+1. create consistent SQLite snapshot using the supported online backup mechanism (or equivalent tested safe method),
+2. record snapshot DB hash/schema version,
+3. copy/reconcile all referenced artifact blobs into backup set,
+4. write backup manifest with artifact hashes/counts,
+5. verify restore into a temporary workspace before marking a backup verified when running release/recovery tests.
+
+Restore never overwrites a live workspace without explicit operator action.
 
 ## 26. Persistent job engine
 
-v1 uses a lightweight SQLite-backed job system.
+The job engine is **foundation infrastructure**, not an API-only feature.
 
-### 26.1 Job states
+### 26.1 States
 
 `QUEUED → RUNNING → {WAITING_REVIEW | SUCCEEDED | FAILED | CANCELLED}`
 
-A RUNNING job stores heartbeat/lease time. On restart, expired RUNNING leases return to a resumable state according to stage policy.
+Cancellation is cooperative and persisted. A cancelled job never later flips to SUCCEEDED unless explicitly retried as a new attempt/run.
 
-### 26.2 Stage checkpoint
+### 26.2 Atomic claim / lease
 
-Each stage records:
-- input artifact/version hash,
-- output artifact/version hash,
-- stage implementation version,
-- status,
+Each runnable job has:
+- job_id,
+- state,
+- priority,
+- created_at,
+- claim_token / lease_owner,
+- lease_expires_at,
+- attempt,
+- idempotency identity.
+
+Claiming is one atomic DB transaction/compare-and-set. Only the owner of the current claim token may heartbeat/complete that attempt.
+
+Expired RUNNING leases are recovered according to the stage's resumability policy.
+
+### 26.3 Scheduler topology
+
+v1 rule:
+- one authoritative scheduler owner per workspace,
+- embedded FastAPI server mode runs one scheduler process/owner,
+- do not launch multiple Uvicorn worker processes each with its own scheduler,
+- CPU/GPU work may execute in bounded worker threads/subprocesses managed by that scheduler,
+- multi-scheduler/distributed execution requires an ADR + concurrency proof.
+
+### 26.4 Checkpoints
+
+Every resumable stage stores:
+- input identity/hash,
+- output identity/hash,
+- implementation version,
+- state,
 - attempts,
-- started/finished timestamps,
-- last typed error.
+- timestamps,
+- typed last error,
+- provider/device metadata if relevant.
 
-### 26.3 Idempotency
+A stage is reused only when its input/config/version hashes still match.
 
-A user-facing idempotency key plus operation/config/input hash prevents duplicate long jobs.
+### 26.5 Idempotency
 
-### 26.4 Concurrency
+Operation identity = workspace/project + operation type + immutable input IDs/hashes + resolved material config.
 
+External API idempotency keys map to that internal identity and have documented retention. Repeating a request must return/reuse the same in-flight/succeeded operation where policy permits rather than creating duplicate billable work.
+
+### 26.6 Concurrency and backpressure
+
+- bounded queue admission,
 - bounded worker pool,
 - per-provider semaphore,
 - per-device speech semaphore,
-- deterministic result ordering,
-- no unbounded `gather()`,
-- backpressure at queue admission.
+- deterministic output ordering,
+- no unbounded task fan-out,
+- explicit cancellation/timeouts.
 
-Redis/Celery/Kafka are explicitly out of scope for v1 single-node mode.
+## 27. Segment, approval, and TM promotion state
 
-## 27. Segment and review state machine
-
-Translation segments use:
+Logical segment workflow:
 
 `PENDING → DRAFTED → REVIEW_REQUIRED → REVIEWED → APPROVED`
 
-Optional direct path:
-`DRAFTED → APPROVED` only when project policy allows and all hard gates pass.
-
-Any source/glossary/style/profile change invalidates approval when its cache/provenance hash changes.
-
-Human edits create a new segment version; they never overwrite history.
+Rules:
+- each transition creates/points to immutable SegmentVersion records,
+- changing source creates a new source version and invalidates active downstream approval,
+- changing a **material** glossary/style/workflow/review policy creates a new required evaluation/review lineage,
+- historical approvals remain audit history but are not treated as active for changed inputs,
+- only policy-eligible reviewed/approved target versions can promote to authoritative TM,
+- high-risk legal/medical domain defaults require human principal approval for APPROVED,
+- auto-approval policies and overrides are explicit and provenance-recorded.
 
 ## 28. Prompt, rule, and profile registry
 
@@ -1045,55 +1338,74 @@ Editing behavior creates a new version ID. Old project runs remain reproducible.
 
 Prompt templates are code-reviewed assets, not user-writable arbitrary templates in production mode unless the project is explicitly in custom-prompt mode.
 
-## 29. Plugin/capability registry
+## 29. Capability registry and plugin boundary
 
-Optional components register an explicit capability descriptor:
+Optional components register explicit capability metadata:
+- capability_id,
+- package/version,
+- operations/languages/formats,
+- hardware/network requirements,
+- dependency extra,
+- license/policy manifest IDs.
 
-~~~text
-capability_id
-package
-version
-operations
-languages
-formats
-hardware requirements
-network requirement
-license status
-commercial-use status
-redistribution status
-model manifests
-~~~
+### 29.1 v1 adapter policy
 
-Startup never imports every optional package “just in case”. A missing optional dependency produces `CapabilityUnavailableError` with the exact extra/install route.
+Core v1 supports:
+- built-in adapters shipped with Tarjoman,
+- explicitly configured first-party optional packages.
 
-## 30. Model and dataset compliance registry
+Core v1 does **not** scan/import arbitrary third-party Python entry points/plugins at startup.
 
-Every model/voice/dataset has a `ModelManifest` or `DataManifest`.
+A public third-party plugin ABI requires a later ADR covering:
+- versioning,
+- signature/provenance,
+- permissions,
+- filesystem/network access,
+- dependency isolation/sandboxing,
+- failure containment.
 
-Required fields:
-- immutable ID + source URL/revision/hash,
+Missing optional capability returns `CapabilityUnavailableError` and exact install/config guidance. No surprise model/package download occurs at import or startup.
+
+## 30. Model, dataset, service, and license compliance registry
+
+Every external model/voice/dataset/service has a manifest.
+
+Required fields as applicable:
+- immutable ID + source URL/provider + revision/hash,
 - task/languages,
 - code license,
 - model-weight license,
-- known training-data license/provenance statement,
+- dataset/training provenance statement,
+- service Terms/Privacy URL for remote APIs,
 - commercial_use: allowed | forbidden | unknown,
 - redistribution: allowed | forbidden | unknown,
-- attribution requirements,
 - remote-code requirement,
-- security review status,
-- reviewed_at,
-- reviewer/evidence links.
+- network requirement,
+- attribution obligations,
+- reviewed_at + evidence.
 
-### 30.1 License gate
+### 30.1 Purpose-aware license gate
 
-Production profiles permit only `commercial_use=allowed`.
+License policy evaluates at least:
+- deployment_purpose: `commercial | noncommercial | research`,
+- distribution_mode: `bundled | user_supplied | remote_service`.
 
-`forbidden` and `unknown`:
-- may run only in explicitly non-commercial/research profiles,
-- may never be bundled into a commercial distribution,
-- may never silently download in production.
+Rules:
+- `unknown` never auto-passes,
+- commercial deployments require commercial eligibility,
+- noncommercial production may use NC assets only when all terms are satisfied and manifest policy allows,
+- research mode is explicit and cannot be mislabeled production-commercial,
+- bundling/redistribution may be forbidden even when local use is allowed,
+- a permissive child card never overrides restrictive base/model/data lineage.
 
-A child model card claiming a permissive license does not override a restrictive base model. The full dependency/model lineage must be checked.
+### 30.2 Supply-chain rule
+
+Model acquisition is an explicit install/prepare operation:
+- pinned revision,
+- expected hash/manifest,
+- remote custom code disabled by default,
+- no download during normal import/startup,
+- artifact/license manifest persisted before activation.
 
 ## 31. Speech-output (TTS) architecture
 
@@ -1329,23 +1641,44 @@ meeting_audio_raw
 
 Every derivative points to parent artifact IDs and configuration hashes.
 
-## 36. Server/API security baseline
+## 36. Server/API security and principal model
 
-Any non-loopback server mode requires:
-- authentication,
-- request size limits at server/proxy and application layers,
-- bounded multipart upload,
-- MIME + decoder validation,
-- temporary-file quotas,
-- per-user/project authorization,
-- rate limiting for expensive operations,
-- job IDs rather than blocking long HTTP requests,
-- no arbitrary user path parameters,
-- download by authorized artifact ID,
-- secure filename normalization,
-- cancellation and cleanup.
+### 36.1 v1 tenancy
 
-Demo mode may be loopback-only and explicitly marked non-production.
+Server v1 is **single-tenant per workspace**. It is not a SaaS IAM system.
+
+Remote/API actors are `Principals` authenticated by high-entropy API tokens:
+- token secret displayed/stored only at creation,
+- only a cryptographic hash + metadata is stored,
+- scopes: read / write / admin plus optional project restrictions,
+- revocation/expiry supported.
+
+No username/password/session UI is required for Core v1. Multi-user human IAM is deferred.
+
+### 36.2 Binding/TLS
+
+- default bind: loopback,
+- unauthenticated mode allowed only on loopback and must be explicit,
+- non-loopback production deployment requires authentication and TLS termination,
+- recommended v1 network deployment is behind a trusted reverse proxy/TLS endpoint,
+- direct public plaintext FastAPI exposure is not a supported production configuration.
+
+### 36.3 Request boundary
+
+- body/upload limits before full read,
+- bounded multipart/temp quota,
+- MIME/decoder validation,
+- rate/concurrency limits for expensive work,
+- job IDs for long work,
+- authorized artifact-ID downloads,
+- no arbitrary filesystem path access,
+- provider base URL/model registry changes are admin/config operations, not normal untrusted job parameters.
+
+### 36.4 MCP modes
+
+- local stdio MCP inherits local OS/workspace access,
+- remote MCP uses the same principal/auth/network policy as the server,
+- MCP Tasks (where enabled) map to Tarjoman job IDs/state.
 
 ## 37. Testing pyramid and conformance
 
@@ -1453,3 +1786,126 @@ Core + pronunciation/G2P/TTS engines and speech-output evals.
 Core + persistent jobs + REST/MCP.
 
 A broken optional speech engine blocks that profile, not an unrelated base-package security fix. Compatibility and schema remain coordinated by the same release version.
+
+
+## 41. Network and external-resource enforcement
+
+A central `NetworkGate` receives:
+- operation/project policy,
+- adapter identity,
+- destination class/host,
+- data sensitivity,
+- requested purpose.
+
+Adapters may not open network sockets directly outside the approved client/gate abstraction except explicitly audited low-level implementations.
+
+`local_only` test suites run with network disabled/blocked and fail if an adapter attempts egress.
+
+## 42. Hashing and canonicalization rules
+
+Different hashes have different meanings:
+- `raw_sha256` — exact imported bytes,
+- `canonical_content_hash` — parser-defined normalized logical content,
+- `segment_source_hash` — exact canonical source segment text + structural semantics as defined by schema version,
+- `config_hash` — canonical serialized material configuration with secrets removed,
+- `context_hash` — ordered selected context/TM/glossary references and their versions.
+
+No code may substitute one hash domain for another.
+
+Canonical serialization used for hashes is versioned and deterministic.
+
+## 43. Composition root and dependency injection
+
+Concrete adapters are created only at application composition roots (CLI startup, server startup, tests). Application/core code receives ports/interfaces.
+
+This prevents:
+- provider SDK imports in use cases,
+- accidental network/model loading at import,
+- interface-specific business behavior.
+
+Tests can replace every external adapter with a fake through the same port.
+
+## 44. External model/provider semantic fallback
+
+Fallback policy must specify:
+- allowed provider/model sequence,
+- which error classes trigger fallback,
+- whether quality/cost tier change is allowed,
+- whether user confirmation is required,
+- whether context/prompts are compatible.
+
+A fallback produces a provenance event. Language fallback, cloud escalation, or noncommercial model substitution is never implicit.
+
+## 45. Protected content and parser fidelity contract
+
+Every ingest adapter defines:
+- what structure is editable,
+- what is protected exact,
+- what is mapped/normalized,
+- unsupported constructs.
+
+If parser/exporter cannot prove safe round-trip of required structure, it fails or marks the artifact unsupported/degraded. It does not “let the LLM try”.
+
+## 46. Backup, export, and portability
+
+Workspace backup and project export are different:
+- **workspace backup** restores operational state/jobs/artifacts for recovery,
+- **project export** creates a portable project package containing project metadata, approved TM/termbase, selected artifacts, provenance, and manifest without secrets/runtime tokens.
+
+Import validates hashes/schema/license metadata before activation.
+
+## 47. Architecture conformance automation
+
+CI/static checks eventually assert:
+- no forbidden layer imports,
+- no heavy optional packages imported by base import,
+- no direct network clients outside approved adapters,
+- no `shell=True` production call,
+- no direct provider SDK in core/application,
+- migrations immutable/checksummed,
+- public status enum exactly canonical,
+- docs commands correspond to registered CLI commands,
+- architecture/roadmap revisions match `ARCHITECTURE_MANIFEST.json`.
+
+## 48. Scope control and release tracks
+
+Tracks share Foundation but are not one giant sequential release:
+
+~~~text
+Foundation
+   ├─ Translation/Core ── Evaluation ── Formats ── API/MCP ── Core v1
+   ├─ ASR/Knowledge --------------------------------------> ASR capability release
+   ├─ TTS ------------------------------------------------> TTS capability release
+   └─ UI -------------------------------------------------> later UI release
+A2A is optional after core agent contracts stabilize.
+~~~
+
+Work may run in parallel only when roadmap dependencies are DONE and resource conflicts are managed externally.
+
+## 49. Freeze protocol
+
+Architecture status values:
+- `DRAFT`
+- `OWNER_FREEZE_CANDIDATE`
+- `FROZEN_IMPLEMENTATION`
+- `SUPERSEDED`
+
+To move this revision to `FROZEN_IMPLEMENTATION`:
+1. multi-pass review closure has zero unresolved Critical/Major architecture findings,
+2. `ARCHITECTURE_MANIFEST.json` matches documents,
+3. owner explicitly accepts the revision,
+4. a freeze commit records the state; optional tag may be created,
+5. implementation branches reference that freeze SHA.
+
+After freeze, contradictions require ADR.
+
+## 50. Architecture Zero review result
+
+Revision PROD-3 incorporates five independent review passes recorded under `review/`:
+1. structural consistency,
+2. data/runtime/recovery,
+3. security/privacy/license,
+4. coding-agent executability,
+5. scope/current protocol standards.
+
+All discovered Critical/Major issues are either resolved in this architecture or explicitly deferred with a non-implementation default. Remaining uncertainty is product/model selection work gated by later benchmark/manifest packages, not an unowned architecture decision.
