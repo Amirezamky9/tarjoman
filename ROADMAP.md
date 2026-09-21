@@ -6,16 +6,16 @@
 **Status:** OWNER_FREEZE_CANDIDATE
 **Immutable upstream baseline:** `58e97b802aa3efb318135a5923231c0a08550c4a`
 
-This roadmap is generated conceptually from the same work-package contract stored in `WORKPACKAGES.json`. The JSON registry is the machine-readable execution source; this file is the human-readable view.
+This roadmap and `WORKPACKAGES.json` describe the same execution graph. The JSON registry is the machine-readable source of Work Package dependencies and acceptance; this file is the human-readable view.
 
 ## Execution law
 
-- Do not begin a package until every `depends_on` package is `DONE` or the owner explicitly records a dependency waiver via ADR/roadmap change.
+- Do not begin a package until every `depends_on` package is DONE, unless an accepted ADR/roadmap revision changes the graph.
 - One Work Package per PR by default.
-- Package scope is the named deliverable plus acceptance criteria; unrelated cleanup is out of scope.
-- A package is not DONE until all acceptance items have evidence.
-- Architecture-impacting ambiguity follows the ADR stop rule in `AGENTS.md`.
-- Core v1 packages are marked **YES** below; ASR/TTS/UI/A2A packages may proceed later/parallel when dependencies permit.
+- The named deliverable + acceptance criteria define scope; unrelated cleanup is out of scope.
+- A package is DONE only when every acceptance item has evidence.
+- Architecture-impacting ambiguity triggers the ADR stop rule in `AGENTS.md`.
+- A Core-v1 package may not depend on a package outside the Core-v1 set; CI/validation must enforce this.
 
 ## Critical path
 
@@ -27,8 +27,9 @@ Architecture freeze
             -> Application facade + MCP
                -> Core release hardening -> Core v1.0
 
-Foundation also unlocks independent ASR and TTS tracks.
-UI depends on stable API contracts. A2A is optional after MCP/app contracts.
+Foundation separately unlocks ASR and TTS.
+UI depends on stable API contracts.
+A2A is optional after MCP/application contracts.
 ```
 
 # Phase 0 — Architecture / evidence freeze
@@ -54,7 +55,7 @@ UI depends on stable API contracts. A2A is optional after MCP/app contracts.
 | **FND-007** Migration discipline | FND-006 | YES | foundation component: Migration discipline | migration idempotence check,; cannot edit applied migration unnoticed (checksum),; failure rolls back or leaves recoverable state |
 | **FND-008** Legacy-state importer | FND-006, FND-007 | YES | foundation component: Legacy-state importer | fixture conversions,; duplicate/conflict policy deterministic,; source files never deleted automatically |
 | **FND-009** Persian quality split | FND-001, FND-002 | YES | foundation component: Persian quality split | normalization idempotence tests,; anti-calque rules default diagnostic,; false-positive regression cases |
-| **FND-010** Prompt/profile/rule registry | FND-002, FND-004 | YES | foundation component: Prompt/profile/rule registry | old version loadable,; changing content requires new ID/checksum,; run provenance stores exact IDs |
+| **FND-010** Versioned behavior and compliance registries | FND-002, FND-004 | YES | immutable prompt/profile/rule/strategy registry plus model/data/service manifest schemas and license-policy primitives | prompt/profile/rule/strategy content is versioned by immutable ID/checksum; ModelManifest/DataManifest/ServiceManifest schemas represent source revision, license, purpose and redistribution status; unknown license status fails closed under commercial/bundled policy tests; run provenance can reference exact behavior and compliance manifest IDs |
 | **FND-011** Structured logging/provenance | FND-003, FND-004, FND-006, FND-010 | YES | foundation component: Structured logging/provenance | redaction test,; JSON log option,; provider error cannot leak API key |
 | **FND-012** Architecture-conformance CI | FND-001, FND-002, FND-003, FND-004, FND-005, FND-006, FND-007, FND-008, FND-009, FND-010, FND-011 | YES | foundation component: Architecture-conformance CI | base job installs without speech/eval/server extras,; architecture violations fail CI |
 
@@ -112,9 +113,9 @@ UI depends on stable API contracts. A2A is optional after MCP/app contracts.
 |---|---|:---:|---|---|
 | **ASR-001** Media ingest | FND-005, FND-012 | no | ASR/knowledge capability: Media ingest | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
 | **ASR-002** ASR port | FND-002 | no | ASR/knowledge capability: ASR port | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
-| **ASR-003** faster-whisper adapter | ASR-001, ASR-002, TTS-002 | no | ASR/knowledge capability: faster-whisper adapter | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
+| **ASR-003** faster-whisper adapter | ASR-001, ASR-002, FND-010 | no | ASR/knowledge capability: faster-whisper adapter | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
 | **ASR-004** ASR language policy | ASR-002 | no | ASR/knowledge capability: ASR language policy | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
-| **ASR-005** Diarization port | ASR-002, TTS-002 | no | ASR/knowledge capability: Diarization port | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
+| **ASR-005** Diarization port | ASR-002, FND-010 | no | ASR/knowledge capability: Diarization port | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
 | **ASR-006** Transcript artifact lineage | ASR-003, FND-005 | no | ASR/knowledge capability: Transcript artifact lineage | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
 | **ASR-007** Persian spoken normalization | ASR-006, FND-009 | no | ASR/knowledge capability: Persian spoken normalization | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
 | **ASR-008** Spoken→written formalizer | ASR-007, TRN-001, TRN-005 | no | ASR/knowledge capability: Spoken→written formalizer | typed artifact/provenance is produced; failure/cancel path is tested; heavy dependency remains optional and license manifest is enforced where relevant |
@@ -128,7 +129,7 @@ UI depends on stable API contracts. A2A is optional after MCP/app contracts.
 | ID | Depends on | Core v1 | Deliverable | Acceptance |
 |---|---|:---:|---|---|
 | **TTS-001** TTS contracts | FND-002 | no | TTS capability: TTS contracts | typed speech artifact/provenance is produced or research status is explicit; pronunciation/quality or policy failure path is tested; heavy dependency/model remains optional and license-gated |
-| **TTS-002** Model/Data Manifest + license gate | FND-006, FND-010 | no | TTS capability: Model/Data Manifest + license gate | production rejects unknown/non-commercial manifest,; research profile can explicitly allow non-commercial,; transitive/base model license evidence recorded |
+| **TTS-002** TTS model/voice manifest population and policy tests | FND-010, FND-006 | no | TTS-specific model/voice manifest entries and license-policy test fixtures | every benchmarked TTS model/voice has a manifest with exact source/revision/license evidence; commercial/noncommercial/research and bundled/user-supplied modes are tested; Pocket Farsi v2 remains blocked from commercial bundled profile unless licensing changes |
 | **TTS-003** SpeechTextNormalizer | FND-009, TTS-001 | no | TTS capability: SpeechTextNormalizer | written source artifact unchanged,; golden speech-normalization cases |
 | **TTS-004** Pronunciation lexicon | FND-006, TTS-003 | no | TTS capability: Pronunciation lexicon | typed speech artifact/provenance is produced or research status is explicit; pronunciation/quality or policy failure path is tested; heavy dependency/model remains optional and license-gated |
 | **TTS-005** G2P port | TTS-001, TTS-004 | no | TTS capability: G2P port | curated Ezafe/names/English-term suite,; G2P failures surfaced, not silently dropped |
@@ -184,7 +185,7 @@ UI depends on stable API contracts. A2A is optional after MCP/app contracts.
 | **REL-005** Provider outage/rate-limit drill | TRN-004, TRN-005 | YES | release evidence for provider outage/rate-limit drill | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
 | **REL-006** Job crash/restart drill | TRN-010, FND-006 | YES | release evidence for job crash/restart drill | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
 | **REL-007** Security review | FND-012, MCP-004 | YES | release evidence for security review | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
-| **REL-008** License audit | TTS-002, FND-012 | YES | release evidence for license audit | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
+| **REL-008** License audit | FND-010, FND-012 | YES | license/SBOM audit for assets actually bundled or enabled by the release profile | all bundled runtime dependencies/models/voices/datasets have reviewed license evidence; unknown or incompatible assets block the affected release capability; NOTICE/SBOM inputs are generated from the reviewed manifests |
 | **REL-009** Performance/soak | TRN-010, FMT-001, FMT-002, FMT-003 | YES | release evidence for performance/soak | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
 | **REL-010** Human MQM release review | EVAL-006, EVAL-007 | YES | release evidence for human mqm release review | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
 | **REL-011** TTS listening/pronunciation release review | TTS-015 | no | release evidence for tts listening/pronunciation release review | evidence report/drill is committed or attached; failure condition is demonstrated before pass; release gate is machine-checkable where practical |
@@ -195,16 +196,16 @@ UI depends on stable API contracts. A2A is optional after MCP/app contracts.
 # Release-track gates
 
 ## Core v1.0
-All packages with `required_for_core_v1=true` must be DONE. Core v1 does not wait for ASR, TTS, UI, or A2A.
+Every package with `required_for_core_v1=true` must be DONE. Validation must prove none depends on an optional-track package.
 
 ## ASR capability
-ASR-001..012 plus applicable REL security/license/recovery evidence must be DONE before ASR is advertised production-ready.
+ASR packages plus applicable security/license/recovery release evidence must be DONE before ASR is advertised production-ready.
 
 ## TTS capability
-TTS-001..017 packages applicable to the chosen engine plus TTS license/evaluation/release evidence must be DONE before TTS is advertised production-ready.
+TTS packages applicable to the selected engine plus TTS license/evaluation/release evidence must be DONE before TTS is advertised production-ready.
 
 ## UI / A2A
-Ship independently after their dependencies and capability-specific review gates pass.
+Ship independently after dependencies and capability-specific gates pass.
 
 # Deferred infrastructure
 Redis, Celery, Kafka, Postgres, Kubernetes, distributed schedulers, third-party plugin ABI, application-level encrypted workspaces, exact PDF reconstruction, and custom model training require evidence + ADR before entering an active package.

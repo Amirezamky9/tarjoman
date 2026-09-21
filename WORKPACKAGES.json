@@ -275,7 +275,7 @@
     },
     {
       "id": "FND-010",
-      "title": "Prompt/profile/rule registry",
+      "title": "Versioned behavior and compliance registries",
       "phase": "1",
       "track": "foundation",
       "status": "PLANNED",
@@ -284,11 +284,12 @@
         "FND-002",
         "FND-004"
       ],
-      "deliverable": "foundation component: Prompt/profile/rule registry",
+      "deliverable": "immutable prompt/profile/rule/strategy registry plus model/data/service manifest schemas and license-policy primitives",
       "acceptance": [
-        "old version loadable,",
-        "changing content requires new ID/checksum,",
-        "run provenance stores exact IDs"
+        "prompt/profile/rule/strategy content is versioned by immutable ID/checksum",
+        "ModelManifest/DataManifest/ServiceManifest schemas represent source revision, license, purpose and redistribution status",
+        "unknown license status fails closed under commercial/bundled policy tests",
+        "run provenance can reference exact behavior and compliance manifest IDs"
       ],
       "out_of_scope": "provider/model feature work unrelated to the foundation package"
     },
@@ -1005,7 +1006,7 @@
       "depends_on": [
         "ASR-001",
         "ASR-002",
-        "TTS-002"
+        "FND-010"
       ],
       "deliverable": "ASR/knowledge capability: faster-whisper adapter",
       "acceptance": [
@@ -1042,7 +1043,7 @@
       "required_for_core_v1": false,
       "depends_on": [
         "ASR-002",
-        "TTS-002"
+        "FND-010"
       ],
       "deliverable": "ASR/knowledge capability: Diarization port",
       "acceptance": [
@@ -1205,20 +1206,20 @@
     },
     {
       "id": "TTS-002",
-      "title": "Model/Data Manifest + license gate",
+      "title": "TTS model/voice manifest population and policy tests",
       "phase": "6",
       "track": "tts",
       "status": "PLANNED",
       "required_for_core_v1": false,
       "depends_on": [
-        "FND-006",
-        "FND-010"
+        "FND-010",
+        "FND-006"
       ],
-      "deliverable": "TTS capability: Model/Data Manifest + license gate",
+      "deliverable": "TTS-specific model/voice manifest entries and license-policy test fixtures",
       "acceptance": [
-        "production rejects unknown/non-commercial manifest,",
-        "research profile can explicitly allow non-commercial,",
-        "transitive/base model license evidence recorded"
+        "every benchmarked TTS model/voice has a manifest with exact source/revision/license evidence",
+        "commercial/noncommercial/research and bundled/user-supplied modes are tested",
+        "Pocket Farsi v2 remains blocked from commercial bundled profile unless licensing changes"
       ],
       "out_of_scope": "ASR/UI/distributed infrastructure"
     },
@@ -1996,14 +1997,14 @@
       "status": "PLANNED",
       "required_for_core_v1": true,
       "depends_on": [
-        "TTS-002",
+        "FND-010",
         "FND-012"
       ],
-      "deliverable": "release evidence for license audit",
+      "deliverable": "license/SBOM audit for assets actually bundled or enabled by the release profile",
       "acceptance": [
-        "evidence report/drill is committed or attached",
-        "failure condition is demonstrated before pass",
-        "release gate is machine-checkable where practical"
+        "all bundled runtime dependencies/models/voices/datasets have reviewed license evidence",
+        "unknown or incompatible assets block the affected release capability",
+        "NOTICE/SBOM inputs are generated from the reviewed manifests"
       ],
       "out_of_scope": "new product features"
     },
