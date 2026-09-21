@@ -5,7 +5,7 @@
   "status": "FROZEN_IMPLEMENTATION",
   "baseline_sha": "58e97b802aa3efb318135a5923231c0a08550c4a",
   "architecture_branch": "arch/production-zero",
-  "freeze_sha": null,
+  "freeze_sha": "2ef15fec8c1334758ea7a678fa8e2b90ac5c6906",
   "required_documents": [
     "ARCHITECTURE_ZERO.md",
     "ROADMAP.md",
@@ -28,5 +28,6 @@
   "owner_approved_candidate_sha": "bc43c1bb8b0bf6986d4353766591278a1f0b91a3",
   "freeze_recorded_at": "2026-09-21",
   "implementation_authorized": true,
-  "implementation_start_work_package": "FND-001"
+  "implementation_start_work_package": "FND-001",
+  "freeze_commit_message": "docs: owner-freeze TARJOMAN-A0-PROD-3 for implementation"
 }
