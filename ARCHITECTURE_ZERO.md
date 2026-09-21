@@ -1002,7 +1002,7 @@ Core v1.0 can ship when:
 - TXT/MD/HTML/SRT/VTT are reliable; DOCX ships only if its fidelity gate passes,
 - long translation jobs resume after crash/cancel,
 - provenance/redacted logging/policy gates are complete,
-- CLI/Python and MCP/server core paths pass conformance,
+- CLI/Python and MCP core paths pass conformance; REST server conformance is required only when the server capability is shipped,
 - clean wheel install and release/security/license checks pass.
 
 **Core v1.0 does not wait for ASR, TTS, Web UI, or A2A.**

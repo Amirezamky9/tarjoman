@@ -46,7 +46,7 @@
 ## Closure
 
 - Critical findings: **11 / 11 resolved**
-- Major findings: **24 / 24 resolved**
+- Major findings: **23 / 23 resolved**
 - Minor findings: **2 / 2 resolved**
 - Unresolved Critical/Major architecture findings from these passes: **0**
 
