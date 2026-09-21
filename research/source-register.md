@@ -32,6 +32,17 @@ This register is for traceability. Architectural patterns may be learned from th
 | A2A | https://github.com/a2aproject/A2A | agent-to-agent protocol | use official SDK/spec |
 | Orca transcription | https://orca-chat.ir/audio-to-text | Persian product UX research | product reference only |
 
+| Persian TTS / Parsigo | https://github.com/nimaone/persian_tts | ONNX/G2P/voice-cloning architecture | repo currently has no detected license; do not copy code without clarification |
+| Pocket-TTS Farsi v2 ONNX | https://huggingface.co/Nimaone/pocket-tts-farsi-v2-onnx | lightweight Persian clone TTS | CC-BY-NC-4.0 weights; non-commercial |
+| Pocket-TTS Farsi v2 | https://huggingface.co/mehdi-hf/pocket-tts-farsi-v2 | underlying Persian TTS model | CC-BY-NC-4.0 |
+| MMS Persian TTS | https://huggingface.co/facebook/mms-tts-fas | Persian fixed TTS baseline | CC-BY-NC-4.0 |
+| ParsVoice XTTS | https://huggingface.co/MohammadJRanjbar/ParsVoice-XTTS | Persian XTTS/clone candidate | CPML inherited from XTTS-v2; non-commercial |
+| MOSS-TTS v1.5 | https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5 | modern Persian multilingual/clone candidate | model card Apache-2.0; full lineage still review before bundling |
+| OpenMOSS TTS | https://github.com/OpenMOSS/MOSS-TTS | MOSS implementation | review dependency/model lineage |
+| Persian Piper weights | https://huggingface.co/SadeghK/persian-text-to-speech | lightweight Persian fixed voices | repo metadata Apache-2.0; verify each voice/data lineage |
+| ManaTTS Persian | https://github.com/MahtaFetrat/ManaTTS-Persian-Tacotron2-Model | Persian TTS baseline | README states CC0 model weights; verify artifacts |
+| sherpa-onnx | https://github.com/k2-fsa/sherpa-onnx | cross-platform ONNX speech runtime | Apache-2.0 code; model licenses remain separate |
+
 ## License policy
 
 1. Do not copy code from GPL/AGPL sources into Tarjoman MIT core.

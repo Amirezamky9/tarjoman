@@ -1,11 +1,12 @@
 # Tarjoman Architecture Zero
 
-**Revision:** TARJOMAN-A0-PROD-1  
+**Revision:** TARJOMAN-A0-PROD-2  
 **Date:** 2026-09-21  
 **Fork:** Amirezamky9/tarjoman  
 **Upstream baseline:** `58e97b802aa3efb318135a5923231c0a08550c4a`  
 **Architecture branch:** `arch/production-zero`  
-**Status:** READY_FOR_OWNER_FREEZE
+**Status:** READY_FOR_OWNER_FREEZE  
+**Supersedes:** TARJOMAN-A0-PROD-1
 
 > This document is the normative engineering baseline for turning Tarjoman from a promising translation/quality toolkit into a production-grade, Persian-first content transformation engine. Once the owner freezes this revision, implementation changes that contradict a locked decision require an ADR.
 
@@ -43,6 +44,7 @@ Its primary job is not merely “translate a sentence”. It takes text, documen
 4. **Document localization** — preserve non-translatable structure and, where the format adapter supports it, formatting.
 5. **Audio knowledge** — Persian/multilingual audio or video → timestamped transcript → cleaned Persian → lecture notes / meeting minutes / summary / action items.
 6. **Agent-native operation** — deterministic CLI/Python/API plus MCP tools; optional A2A surface for remote-agent collaboration.
+7. **Speech output (TTS)** — Persian text/artifacts → pronunciation-aware speech, optional voice cloning, audiobook/podcast/accessibility outputs, always behind model/license/safety policy.
 
 ### 1.2 What Tarjoman is not
 
@@ -662,8 +664,10 @@ Target packaging shape:
 - `tarjoman` — core, CLI, deterministic Persian quality, SQLite state
 - `tarjoman[llm]` — HTTP/provider adapters
 - `tarjoman[docs]` — document adapters
-- `tarjoman[audio]` — faster-whisper/audio tooling
-- `tarjoman[eval]` — SacreBLEU/COMET stack
+- `tarjoman[asr]` — faster-whisper/audio-input tooling
+- `tarjoman[tts]` — speech synthesis engines/G2P adapters
+- `tarjoman[speech]` — convenience extra for ASR + TTS
+- `tarjoman[eval]` — SacreBLEU/COMET/TTS-eval stack
 - `tarjoman[server]` — FastAPI/Uvicorn
 - `tarjoman[mcp]` — MCP server
 - `tarjoman[all]` — convenience only
@@ -766,6 +770,23 @@ Releases:
 | D16 | Privacy policy is enforced in the Model Harness; source content is not logged by default. |
 | D17 | Long jobs are resumable, idempotent, bounded-concurrency jobs. |
 | D18 | Architecture changes after freeze require ADRs. |
+| D19 | Module dependencies follow Core <- Application <- Infrastructure/Adapters <- Interfaces; reverse imports are forbidden. |
+| D20 | SQLite stores transactional metadata; large/binary artifacts live in a content-addressed filesystem store, not DB BLOBs. |
+| D21 | Configuration precedence is CLI > environment > project config > user config > defaults; secrets never live in project config. |
+| D22 | v1 uses a SQLite-backed single-node persistent job engine; Redis/Celery/Kafka are forbidden unless an ADR proves need. |
+| D23 | Prompts, profiles, rules, schemas, and strategy versions are immutable identifiers recorded in every run. |
+| D24 | TTS is an optional provider-neutral speech-output module; it never becomes a mandatory base dependency. |
+| D25 | Persian speech normalization, pronunciation lexicon, G2P, speech planning, synthesis, and audio post-processing are separate contracts. |
+| D26 | `nimaone/persian_tts` / pocket-tts-farsi-v2 is research/non-commercial by default; it is never bundled into a commercial production profile without an explicit compatible license. |
+| D27 | Every external model/voice/dataset must have a machine-readable ModelManifest and pass a license gate before production use or redistribution. |
+| D28 | Voice cloning requires explicit capability enablement, reference-audio consent/ownership attestation, provenance, and retention controls. |
+| D29 | TTS quality is independently evaluated for pronunciation/intelligibility, naturalness, speaker similarity when relevant, long-form stability, latency/RTF, memory, and failure rate. |
+| D30 | Patterns from external repos may be independently reimplemented; code is not copied when repository/model licensing is absent, incompatible, or unclear. |
+| D31 | Raw audio/transcript/source text is immutable evidence; cleaned/formalized/synthesized artifacts are versioned derivatives with lineage. |
+| D32 | Optional plugins are registered explicitly; import-time plugin discovery and surprise network/model downloads are forbidden. |
+| D33 | Architecture-conformance tests enforce dependency direction, optional-dependency isolation, no direct provider SDK in core, and no network in deterministic tests. |
+| D34 | One implementation work package per PR by default; architecture-changing code is blocked until its ADR is accepted. |
+| D35 | Provider/model fallback is explicit policy; silent fallback to a different model, cloud, language, or quality tier is forbidden. |
 
 ## 20. Definition of “production-ready v1”
 
@@ -798,3 +819,637 @@ The following are intentionally deferred and therefore **must not block Foundati
 - Multi-user database server/Postgres: only if SQLite measurements justify it.
 
 The default action for a deferred item is **do not implement it early**.
+
+
+---
+
+## 22. Implementation architecture: layers and dependency law
+
+This section turns the conceptual architecture into rules that coding agents can test.
+
+### 22.1 Layers
+
+~~~text
+┌─────────────────────────────────────────────────────────┐
+│ Interfaces: CLI / REST / MCP / A2A / future Web UI     │
+└──────────────────────────────┬──────────────────────────┘
+                               │ calls
+┌──────────────────────────────▼──────────────────────────┐
+│ Application: use-cases, jobs, orchestration, services  │
+└──────────────────────────────┬──────────────────────────┘
+                               │ depends on ports/contracts
+┌──────────────────────────────▼──────────────────────────┐
+│ Core: IR, policies, state machines, pure quality rules │
+└──────────────────────────────▲──────────────────────────┘
+                               │ implemented by
+┌──────────────────────────────┴──────────────────────────┐
+│ Infrastructure/Adapters: DB, providers, files, ASR/TTS │
+└─────────────────────────────────────────────────────────┘
+~~~
+
+Dependency rule:
+- `core` imports only stdlib + explicitly approved lightweight schema/runtime dependencies.
+- `application` may import `core`, never concrete infrastructure.
+- `infrastructure/adapters` implement ports defined by core/application.
+- `interfaces` call application services and may compose adapters at startup.
+- adapters do not call CLI/API/MCP code.
+- one interface never imports another interface.
+- provider SDKs, FastAPI, MCP SDK, Whisper, ONNX Runtime, COMET and document libraries are never imported by base-core modules.
+
+CI must enforce this with import-boundary tests.
+
+### 22.2 Package ownership
+
+| Package | Owns | Must not own |
+|---|---|---|
+| `core.contracts` | stable IR/data contracts | network, DB sessions, provider clients |
+| `core.policies` | privacy/license/retry/routing decisions | provider-specific code |
+| `core.quality` | deterministic Persian normalization + typed findings | model calls |
+| `application` | use cases and transaction boundaries | HTTP framework |
+| `providers` | LLM provider adapters | business decisions |
+| `storage` | SQLite repositories + blob store | UI behavior |
+| `ingest/export` | file format transformations | translation strategy |
+| `speech.asr` | ASR ports/adapters | meeting summaries |
+| `speech.tts` | TTS ports/adapters | translation decisions |
+| `interfaces.*` | input/output protocol mapping | duplicate core logic |
+
+## 23. Configuration and secret contract
+
+### 23.1 Precedence
+
+Highest wins:
+
+1. explicit CLI/API call arguments,
+2. environment variables,
+3. project `tarjoman.toml`,
+4. user config under OS application-data directory,
+5. packaged defaults.
+
+No hidden current-working-directory config lookup beyond the explicit project file.
+
+### 23.2 Secrets
+
+API keys/tokens:
+- environment variable or OS keyring/secret provider only,
+- never written to project TOML, SQLite run payloads, logs, benchmark reports, or exported artifacts,
+- redaction applies to exception text and provider HTTP traces.
+
+### 23.3 Reproducibility snapshot
+
+Each run stores a redacted resolved-config snapshot hash plus:
+- provider/model,
+- strategy ID,
+- prompt/profile/rule versions,
+- glossary/TM/context hashes,
+- random seed where supported,
+- package version and schema version.
+
+## 24. Error taxonomy and failure semantics
+
+Public errors are typed:
+
+| Error | Retry? | User action |
+|---|---:|---|
+| `ConfigurationError` | no | fix config |
+| `PolicyViolationError` | no | change policy/permission |
+| `LicensePolicyError` | no | use approved model/voice |
+| `CapabilityUnavailableError` | no | install extra or choose adapter |
+| `ProviderRateLimitError` | bounded | wait/backoff |
+| `ProviderTransientError` | bounded | retry/fallback if policy allows |
+| `ProviderPermanentError` | no | fix request/provider |
+| `StructuredOutputError` | one bounded repair path | model/schema issue |
+| `ArtifactValidationError` | no | inspect source/parser |
+| `MigrationError` | no automatic destructive repair | restore/upgrade |
+| `JobCancelledError` | no | expected cancellation |
+| `SpeechSynthesisQualityError` | bounded per configured policy | retry/alternate engine only if allowed |
+
+Rules:
+- no blanket `except Exception: pass` in production paths,
+- no infinite retry,
+- errors crossing CLI/API/MCP are mapped to stable machine codes,
+- raw source content is excluded from normal error messages.
+
+## 25. Storage architecture
+
+### 25.1 Split metadata from binary artifacts
+
+SQLite WAL stores metadata and text-sized records. Large files use an artifact store:
+
+~~~text
+<project-root>/.tarjoman/
+  project.toml
+  state.sqlite3
+  artifacts/
+    sha256/
+      ab/
+        <full-sha256>
+  exports/
+  locks/
+~~~
+
+Audio, video, PDFs, DOCX, generated WAV/MP3 and other large binaries are never stored as SQLite BLOBs in v1.
+
+### 25.2 Artifact record
+
+Every stored binary has:
+- artifact_id,
+- sha256,
+- byte_size,
+- MIME type,
+- logical filename,
+- producer + version,
+- parent artifact IDs,
+- created_at,
+- retention/sensitivity policy.
+
+Writes:
+1. stream to temp file,
+2. hash while writing,
+3. fsync where supported,
+4. atomic rename to content-addressed path,
+5. commit DB metadata.
+
+Partial artifacts are never presented as completed.
+
+### 25.3 Database rules
+
+- numbered SQL migrations,
+- migration transaction where SQLite permits,
+- `PRAGMA foreign_keys=ON`,
+- WAL mode,
+- explicit busy timeout,
+- indexes justified by query plan/benchmarks,
+- no destructive migration without backup/forward-migration plan,
+- repository layer owns SQL,
+- schema version checked before application work starts.
+
+## 26. Persistent job engine
+
+v1 uses a lightweight SQLite-backed job system.
+
+### 26.1 Job states
+
+`QUEUED → RUNNING → {WAITING_REVIEW | SUCCEEDED | FAILED | CANCELLED}`
+
+A RUNNING job stores heartbeat/lease time. On restart, expired RUNNING leases return to a resumable state according to stage policy.
+
+### 26.2 Stage checkpoint
+
+Each stage records:
+- input artifact/version hash,
+- output artifact/version hash,
+- stage implementation version,
+- status,
+- attempts,
+- started/finished timestamps,
+- last typed error.
+
+### 26.3 Idempotency
+
+A user-facing idempotency key plus operation/config/input hash prevents duplicate long jobs.
+
+### 26.4 Concurrency
+
+- bounded worker pool,
+- per-provider semaphore,
+- per-device speech semaphore,
+- deterministic result ordering,
+- no unbounded `gather()`,
+- backpressure at queue admission.
+
+Redis/Celery/Kafka are explicitly out of scope for v1 single-node mode.
+
+## 27. Segment and review state machine
+
+Translation segments use:
+
+`PENDING → DRAFTED → REVIEW_REQUIRED → REVIEWED → APPROVED`
+
+Optional direct path:
+`DRAFTED → APPROVED` only when project policy allows and all hard gates pass.
+
+Any source/glossary/style/profile change invalidates approval when its cache/provenance hash changes.
+
+Human edits create a new segment version; they never overwrite history.
+
+## 28. Prompt, rule, and profile registry
+
+IDs are immutable, e.g.:
+- `translate.fa.v1`
+- `critique.fa.mqm.v2`
+- `profile.technical.fa.v3`
+- `rules.persian-normalize.v2`
+- `strategy.reflect-1.v1`
+
+Editing behavior creates a new version ID. Old project runs remain reproducible.
+
+Prompt templates are code-reviewed assets, not user-writable arbitrary templates in production mode unless the project is explicitly in custom-prompt mode.
+
+## 29. Plugin/capability registry
+
+Optional components register an explicit capability descriptor:
+
+~~~text
+capability_id
+package
+version
+operations
+languages
+formats
+hardware requirements
+network requirement
+license status
+commercial-use status
+redistribution status
+model manifests
+~~~
+
+Startup never imports every optional package “just in case”. A missing optional dependency produces `CapabilityUnavailableError` with the exact extra/install route.
+
+## 30. Model and dataset compliance registry
+
+Every model/voice/dataset has a `ModelManifest` or `DataManifest`.
+
+Required fields:
+- immutable ID + source URL/revision/hash,
+- task/languages,
+- code license,
+- model-weight license,
+- known training-data license/provenance statement,
+- commercial_use: allowed | forbidden | unknown,
+- redistribution: allowed | forbidden | unknown,
+- attribution requirements,
+- remote-code requirement,
+- security review status,
+- reviewed_at,
+- reviewer/evidence links.
+
+### 30.1 License gate
+
+Production profiles permit only `commercial_use=allowed`.
+
+`forbidden` and `unknown`:
+- may run only in explicitly non-commercial/research profiles,
+- may never be bundled into a commercial distribution,
+- may never silently download in production.
+
+A child model card claiming a permissive license does not override a restrictive base model. The full dependency/model lineage must be checked.
+
+## 31. Speech-output (TTS) architecture
+
+TTS is a first-class optional output subsystem, but it is not coupled to translation.
+
+~~~text
+Text/Artifact
+  → SpeechTextNormalizer
+  → PronunciationResolver
+      ├─ project pronunciation lexicon
+      ├─ named-entity overrides
+      └─ G2P adapter
+  → SpeechPlanner
+      ├─ sentence/phrase boundaries
+      ├─ pause plan
+      ├─ chunk/token budget
+      ├─ pace/style hints
+      └─ language/code-switch spans
+  → TtsEngine
+      ├─ fixed/multi-speaker
+      └─ optional voice-cloning reference
+  → AudioQualityGate
+  → AudioPostProcessor
+  → AudioArtifact + provenance
+~~~
+
+### 31.1 TTS contracts
+
+`TtsEngine`:
+
+~~~python
+class TtsEngine(Protocol):
+    def capabilities(self) -> TtsCapabilities: ...
+    async def synthesize(self, request: TtsRequest) -> TtsResult: ...
+~~~
+
+`TtsCapabilities` declares:
+- languages,
+- voice cloning yes/no,
+- streaming yes/no,
+- seed/determinism support,
+- sample rates,
+- max recommended text/chunk,
+- GPU/CPU requirements,
+- supported reference-audio duration,
+- license manifest ID.
+
+`TtsRequest` includes:
+- normalized speech text or phoneme plan,
+- language,
+- voice profile,
+- pace/style,
+- seed,
+- output format,
+- privacy/license policy.
+
+`TtsResult` includes:
+- audio artifact,
+- sample rate/channels/duration,
+- engine/model/version,
+- seed,
+- pronunciation plan hash,
+- quality-gate results,
+- usage/latency/RTF,
+- warnings.
+
+### 31.2 Speech normalization is not publication normalization
+
+Before TTS, text may require:
+- number verbalization,
+- currency/date/time reading,
+- abbreviations/acronyms,
+- URLs/emails policy,
+- Latin technical-term pronunciation,
+- punctuation-to-prosody mapping,
+- optional Persian diacritics/phoneme hints.
+
+The original written artifact is never modified by speech normalization.
+
+### 31.3 Pronunciation lexicon
+
+Project-level dictionary:
+
+`surface form → normalized reading → optional phonemes → language tag → notes/status`
+
+Priority:
+1. explicit segment override,
+2. approved project pronunciation lexicon,
+3. named-entity dictionary,
+4. G2P,
+5. engine-native fallback.
+
+Manual phoneme editing learned from `nimaone/persian_tts` becomes a durable pronunciation override, not a one-off UI hack.
+
+### 31.4 Long-form speech planner
+
+The planner, not the model, owns:
+- sentence splitting,
+- phrase packing,
+- max token/phoneme budget,
+- punctuation pauses,
+- paragraph/chapter gaps,
+- deterministic chunk order,
+- retry boundaries.
+
+Engine-specific constraints are capability data, not hardcoded global constants.
+
+### 31.5 Voice profiles
+
+A voice profile may be:
+- built-in fixed voice,
+- engine speaker ID,
+- user reference audio,
+- reusable derived speaker embedding if the engine/license permits.
+
+Reference audio rules:
+- content type/size/duration validation before full decode,
+- mono/sample-rate conversion in controlled temp storage,
+- explicit retention policy,
+- original reference hash recorded,
+- deletion removes derived cache/embedding where applicable.
+
+## 32. TTS engines: adoption policy
+
+### 32.1 `nimaone/persian_tts` / Pocket-TTS Farsi v2 ONNX
+
+**What we adopt as engineering patterns**
+- pure ONNX CPU path without Torch,
+- explicit G2P stage,
+- model package manifest,
+- word/phrase-aware chunk planning,
+- reference-voice caching,
+- reproducible seed,
+- bounded parallel chunk generation,
+- bounded retry after acoustic-quality heuristics,
+- loudness/silence stitching,
+- manual pronunciation correction.
+
+**What we do not adopt directly**
+- no production bundling of the current Pocket Farsi v2 weights under CC-BY-NC-4.0,
+- no code copy from the repository while its own repository license is not explicit,
+- no unauthenticated demo-server design,
+- no full-file upload read without byte limits,
+- no global engine lock as final concurrency architecture,
+- no in-memory-only result store as production artifact storage.
+
+A future adapter can support a user-supplied Pocket ONNX package in `research/noncommercial` mode if license policy allows.
+
+### 32.2 Commercial-capable candidates to benchmark
+
+Candidates are not defaults until bake-off and license review:
+
+- **MOSS-TTS v1.5** — model card lists Persian among 31 languages and Apache-2.0; strong long-form/voice-cloning features, but ~8.5B parameters / large weight footprint make it a heavy GPU/server profile, not a lightweight default.
+- **Persian Piper/ONNX voices** — attractive fixed-voice CPU profile; each voice's exact model/data license and quality must be recorded before approval.
+- **ManaTTS-derived Persian models** — some published weights report CC0; useful commercial-compatible baseline candidates if quality/fidelity pass.
+- other new Persian models may enter only through the same manifest/bake-off process.
+
+Models based on XTTS-v2/CPML or MMS CC-BY-NC remain non-commercial unless their legal status changes.
+
+## 33. Voice-cloning safety and consent
+
+Voice cloning is an opt-in capability, never the anonymous default.
+
+Production requirements:
+- feature disabled unless project/admin enables it,
+- request records that user asserts authorization to use the reference voice,
+- public unauthenticated endpoint cannot create persistent cloned voice profiles,
+- retention/deletion policy for reference audio and derived embeddings,
+- provenance flag `voice_cloned=true` in generated audio metadata/report,
+- engine-provided watermarking is preserved when available,
+- rate/size limits and abuse controls in server mode,
+- logs never contain raw voice bytes.
+
+Tarjoman does not claim biometric identity verification; it records provenance and enforces product policy.
+
+## 34. TTS quality evaluation
+
+A TTS release is evaluated independently from synthesis.
+
+### 34.1 Persian pronunciation suite
+Must cover:
+- Ezafe,
+- ambiguous unvowelled words,
+- Arabic/Persian names,
+- English technical terms in Persian,
+- numbers/dates/currency,
+- acronyms,
+- ZWNJ compounds,
+- punctuation/prosody,
+- long unpunctuated sentences,
+- domain terminology.
+
+### 34.2 Metrics
+
+Record at minimum:
+- ASR-backtranscription WER/CER as an intelligibility signal,
+- pronunciation error rate on curated lexicon cases,
+- human MOS/naturalness sample,
+- speaker similarity for clone engines,
+- long-form repetition/runaway/truncation rate,
+- duration/pace error,
+- first-audio latency,
+- RTF,
+- peak RAM/VRAM,
+- cold-start time,
+- failure/retry rate.
+
+UTMOS or another learned metric may be secondary evidence, not the sole release gate.
+
+### 34.3 Determinism
+Where seed is supported:
+- same engine/model/voice/text/seed must reproduce within defined tolerance,
+- engine changes require a new implementation/model version.
+
+## 35. Speech artifact lineage
+
+Examples:
+
+~~~text
+source_document
+  └─ translated_fa_v4
+      ├─ speech_plan_v2
+      │   └─ wav_v1
+      └─ audiobook_mp3_v1
+
+meeting_audio_raw
+  └─ transcript_raw
+      └─ transcript_clean
+          ├─ minutes_v3
+          └─ spoken_summary_script
+              └─ tts_audio_v2
+~~~
+
+Every derivative points to parent artifact IDs and configuration hashes.
+
+## 36. Server/API security baseline
+
+Any non-loopback server mode requires:
+- authentication,
+- request size limits at server/proxy and application layers,
+- bounded multipart upload,
+- MIME + decoder validation,
+- temporary-file quotas,
+- per-user/project authorization,
+- rate limiting for expensive operations,
+- job IDs rather than blocking long HTTP requests,
+- no arbitrary user path parameters,
+- download by authorized artifact ID,
+- secure filename normalization,
+- cancellation and cleanup.
+
+Demo mode may be loopback-only and explicitly marked non-production.
+
+## 37. Testing pyramid and conformance
+
+### PR-gating deterministic suite
+- unit tests,
+- contract/schema tests,
+- DB migration tests,
+- artifact round-trip tests,
+- provider fake-server tests,
+- dependency-boundary tests,
+- security tests,
+- CLI/API/MCP equivalence tests,
+- optional-dependency import tests.
+
+### Scheduled/opt-in expensive suite
+- real provider translation evals,
+- COMET/XCOMET,
+- ASR benchmarks,
+- TTS acoustic benchmarks,
+- GPU/server profiles,
+- human review exports.
+
+No secret-dependent test is required for a normal fork contributor PR.
+
+## 38. Coding-agent implementation protocol
+
+Every coding-agent task must name one roadmap Work Package ID.
+
+Before editing, the agent must read:
+1. `ARCHITECTURE_ZERO.md`,
+2. accepted ADRs,
+3. the work package in `ROADMAP.md`,
+4. relevant research file(s),
+5. current tests/contracts.
+
+### 38.1 Required PR evidence
+
+A work-package PR includes:
+- scope and IDs,
+- files changed,
+- contracts/schema changed,
+- migration impact,
+- tests added/changed,
+- commands/tests executed,
+- benchmark/eval impact where relevant,
+- documentation updated,
+- known limitations,
+- confirmation that no locked decision was changed.
+
+### 38.2 Forbidden agent shortcuts
+
+Without an accepted ADR, an agent must not:
+- rewrite Python core in another language,
+- add Redis/Celery/Kafka/Postgres,
+- put provider SDK calls in core/application business rules,
+- make Torch/Whisper/COMET/FastAPI mandatory base dependencies,
+- change public schema silently,
+- modify an old migration after release,
+- log source text/secrets by default,
+- silently fallback to cloud or another model,
+- use a model whose manifest license is unknown/non-commercial in production profile,
+- “fix” semantic Persian with unconditional regex replacements,
+- let an LLM translate raw document markup/timecodes/identifiers without structural protection,
+- store large binaries in SQLite,
+- bypass job checkpoints for long operations,
+- document flags/features that lack executable tests.
+
+### 38.3 Ambiguity protocol
+
+If implementation encounters a case not determined by architecture:
+- if it is internal and does not affect public behavior/data/security/license, choose the simplest implementation and document it in the PR;
+- if it affects API/schema/data migration/security/privacy/license/model behavior/caching/public semantics, stop that work package and propose an ADR.
+No architecture-level guess is permitted.
+
+## 39. Definition of Done for every work package
+
+A package is DONE only when:
+- acceptance criteria pass,
+- tests cover success + at least one failure path,
+- errors are typed,
+- logs/provenance are adequate,
+- optional dependency isolation is preserved,
+- docs reflect actual behavior,
+- no TODO/FIXME remains for an acceptance criterion,
+- no architecture violation exists,
+- migrations are tested if data changed,
+- benchmark/eval baseline is updated when observable quality/performance changes.
+
+“Code written” is not DONE.
+
+## 40. Release profiles
+
+Tarjoman can release capability profiles independently while sharing one versioned core:
+
+### Core profile
+Translation, Persian quality, project/TM/glossary, deterministic formats.
+
+### ASR profile
+Core + speech input/transcription/meeting/lecture derivatives.
+
+### TTS profile
+Core + pronunciation/G2P/TTS engines and speech-output evals.
+
+### Agent/server profile
+Core + persistent jobs + REST/MCP.
+
+A broken optional speech engine blocks that profile, not an unrelated base-package security fix. Compatibility and schema remain coordinated by the same release version.

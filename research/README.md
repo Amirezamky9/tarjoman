@@ -1,7 +1,7 @@
 # Tarjoman Research Index
 
 **Research date:** 2026-09-21  
-**Purpose:** evidence used to design TARJOMAN-A0-PROD-1.  
+**Purpose:** evidence used to design TARJOMAN-A0-PROD-2.  
 **Rule:** these files explain why decisions were made; `ARCHITECTURE_ZERO.md` is normative.
 
 ## Files
@@ -13,7 +13,9 @@
 5. `05-audio-meeting-notes.md` — meeting/lecture transcription systems and Persian-first candidates.
 6. `06-agent-interop.md` — MCP/A2A and agent-facing architecture.
 7. `07-feature-matrix.md` — capability comparison and resulting priorities.
-8. `source-register.md` — source URLs and code-reuse/license cautions.
+8. `08-persian-tts.md` — deep audit of nimaone/persian_tts and current Persian TTS candidates.
+9. `09-engineering-guardrails.md` — implementation constraints for coding agents.
+10. `source-register.md` — source URLs and code-reuse/license cautions.
 
 ## Research method
 

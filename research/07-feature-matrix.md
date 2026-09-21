@@ -20,6 +20,10 @@ Legend:
 | Format preservation | output-only | — | ✅ | ✅ | exports | **P1** |
 | Subtitles | — | — | plugins | some | some | **P1** |
 | Audio transcription | — | — | — | — | ✅ | **P1** |
+| Persian TTS | — | — | — | — | adjacent pattern | **P1 optional profile** |
+| Voice cloning | — | — | — | — | ✅ in speech tools | **P1, consent + license gated** |
+| Pronunciation/G2P lexicon | — | — | glossary only | — | varies | **P1 TTS moat** |
+| Model license gate | — | — | — | — | varies | **P0 platform rule** |
 | Meeting/lecture notes | — | — | — | — | ✅ | **P1** |
 | Local-only mode | core can be local | depends model | ✅ | ✅ | ✅ | **P0 policy** |
 | REST API | — | library | — | ✅ | ✅ | **P1** |
