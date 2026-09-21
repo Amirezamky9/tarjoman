@@ -3,10 +3,16 @@
 **Roadmap revision:** TARJOMAN-RM-3
 **Architecture:** TARJOMAN-A0-PROD-3
 **Date:** 2026-09-21
-**Status:** OWNER_FREEZE_CANDIDATE
+**Status:** FROZEN_IMPLEMENTATION
 **Immutable upstream baseline:** `58e97b802aa3efb318135a5923231c0a08550c4a`
 
 This roadmap and `WORKPACKAGES.json` describe the same execution graph. The JSON registry is the machine-readable source of Work Package dependencies and acceptance; this file is the human-readable view.
+
+## Freeze baseline
+
+- Owner-approved candidate SHA: `bc43c1bb8b0bf6986d4353766591278a1f0b91a3`
+- Architecture state: `FROZEN_IMPLEMENTATION`
+- Exact freeze commit is recorded in `ARCHITECTURE_MANIFEST.json` after the freeze commit is created.
 
 ## Execution law
 

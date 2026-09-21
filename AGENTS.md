@@ -6,8 +6,14 @@ This file is the short execution contract for coding agents. It cannot override 
 
 - Architecture: `TARJOMAN-A0-PROD-3`
 - Roadmap: `TARJOMAN-RM-3`
-- Status: `OWNER_FREEZE_CANDIDATE`
-- **Do not begin production implementation until the owner changes the architecture status to `FROZEN_IMPLEMENTATION`.**
+- Status: `FROZEN_IMPLEMENTATION`
+- Production implementation is authorized only through READY Work Packages and their dependency gates.
+
+## Frozen baseline
+
+- Owner-approved candidate SHA: `bc43c1bb8b0bf6986d4353766591278a1f0b91a3`
+- The exact architecture freeze commit is recorded in `ARCHITECTURE_MANIFEST.json`.
+- Do not reinterpret or silently amend Architecture Zero; use ADRs for architecture changes.
 
 ## Before every coding task
 

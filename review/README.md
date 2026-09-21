@@ -3,9 +3,9 @@
 **Candidate reviewed:** TARJOMAN-A0-PROD-2  
 **Resulting revision:** TARJOMAN-A0-PROD-3  
 **Date:** 2026-09-21  
-**Status:** CLOSED — owner freeze candidate
+**Status:** CLOSED — OWNER APPROVED / FROZEN_IMPLEMENTATION
 
-Five independent passes were performed:
+Owner explicitly approved TARJOMAN-A0-PROD-3 on 2026-09-21. Five independent passes were performed:
 
 1. `PASS-1-STRUCTURAL.md` — contracts, naming, precedence, pipeline contradictions.
 2. `PASS-2-DATA-RUNTIME.md` — workspace/storage/cache/TM/jobs/recovery.

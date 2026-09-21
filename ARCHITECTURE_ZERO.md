@@ -5,7 +5,7 @@
 **Fork:** Amirezamky9/tarjoman  
 **Upstream baseline:** `58e97b802aa3efb318135a5923231c0a08550c4a`  
 **Architecture branch:** `arch/production-zero`  
-**Status:** OWNER_FREEZE_CANDIDATE  
+**Status:** FROZEN_IMPLEMENTATION  
 **Supersedes:** TARJOMAN-A0-PROD-2
 
 > This document is the normative engineering baseline for turning Tarjoman from a promising translation/quality toolkit into a production-grade, Persian-first content transformation engine. Once the owner freezes this revision, implementation changes that contradict a locked decision require an ADR.
@@ -1890,12 +1890,7 @@ Architecture status values:
 - `FROZEN_IMPLEMENTATION`
 - `SUPERSEDED`
 
-To move this revision to `FROZEN_IMPLEMENTATION`:
-1. multi-pass review closure has zero unresolved Critical/Major architecture findings,
-2. `ARCHITECTURE_MANIFEST.json` matches documents,
-3. owner explicitly accepts the revision,
-4. a freeze commit records the state; optional tag may be created,
-5. implementation branches reference that freeze SHA.
+Freeze criteria satisfied on 2026-09-21 by explicit owner approval. The immutable freeze commit is recorded in `ARCHITECTURE_MANIFEST.json`. Any post-freeze contradiction requires an accepted ADR.
 
 After freeze, contradictions require ADR.
 

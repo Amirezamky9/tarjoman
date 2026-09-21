@@ -90,7 +90,7 @@
       "title": "Architecture Zero v3 multi-pass closure",
       "phase": "0",
       "track": "architecture",
-      "status": "REVIEW",
+      "status": "DONE",
       "required_for_core_v1": true,
       "depends_on": [
         "A0-004"
@@ -108,7 +108,7 @@
       "title": "Repository/package layout",
       "phase": "1",
       "track": "foundation",
-      "status": "PLANNED",
+      "status": "READY",
       "required_for_core_v1": true,
       "depends_on": [
         "A0-005"
@@ -2126,5 +2126,7 @@
       ],
       "out_of_scope": "new product features"
     }
-  ]
+  ],
+  "freeze_state": "FROZEN_IMPLEMENTATION",
+  "owner_approved_candidate_sha": "bc43c1bb8b0bf6986d4353766591278a1f0b91a3"
 }
